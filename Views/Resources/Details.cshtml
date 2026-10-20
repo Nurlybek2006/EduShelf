@@ -1,15 +1,151 @@
 @model ResourceDetailsViewModel
 @{
     var resource = Model.Resource;
+    var analysis = Model.Processing;
     ViewData["Title"] = resource.Title;
     var returnUrl = Url.Action("Details", "Resources", new { id = resource.Id });
     var size = resource.FileSize >= 1048576 ? $"{resource.FileSize / 1048576.0:0.0} МБ" : $"{resource.FileSize / 1024.0:0} КБ";
+    var previewUrl = Url.Action("Preview", new { id = resource.Id });
+    var bookmarkFragment = Model.BookmarkPage.HasValue ? $"#page={Model.BookmarkPage.Value}&toolbar=1" : "#toolbar=1";
+    var processingActive = analysis.Status is "Pending" or "Processing" || resource.ProcessingJob?.Status is JobStatus.Pending or JobStatus.Processing;
 }
 <a class="back-link" asp-action="Index"><svg class="icon"><use href="#i-arrow" /></svg>Каталогқа оралу</a>
-<div class="detail-heading"><div class="detail-badges"><span class="badge">@resource.Subject.Name</span><span class="badge badge-muted">@resource.ResourceType.Name</span>@if (resource.Status != ResourceStatus.Published) { <span class="badge badge-orange">@(resource.Status == ResourceStatus.Draft ? "Жоба" : "Архив")</span> }@if (resource.AccessLevel == AccessLevel.Authenticated) { <span class="badge badge-muted"><svg class="icon"><use href="#i-lock" /></svg>Тіркелген оқырмандарға</span> }</div><h1>@resource.Title</h1><div class="detail-byline"><span class="mini-avatar">@(string.IsNullOrWhiteSpace(resource.Owner.FullName) ? "E" : resource.Owner.FullName[..1])</span><strong>@resource.Owner.FullName</strong><span>·</span><time datetime="@resource.CreatedAtUtc.ToString("O")">@resource.CreatedAtUtc.AddHours(5).ToString("dd.MM.yyyy")</time><span>·</span><span><svg class="icon"><use href="#i-eye" /></svg>@Model.ViewCount қаралым</span></div></div>
-<div class="detail-layout"><div class="detail-main"><section class="panel"><div class="panel-header"><h2>Материал туралы</h2><span class="file-type-label">PDF</span></div><p class="detail-description">@resource.Description</p>@if (resource.Topic != null) { <div class="topic-line"><span class="text-muted">Тақырып</span><strong>@resource.Topic.Name</strong></div> }@if (resource.ResourceTags.Any()) { <div class="tag-list">@foreach (var item in resource.ResourceTags) { <a class="tag" asp-action="Index" asp-route-Search="@item.Tag.Name">#@item.Tag.Name</a> }</div> }</section>
-<section class="preview-panel panel"><div class="panel-header"><h2><svg class="icon"><use href="#i-file" /></svg>Алдын ала қарау</h2>@if (Model.FileExists) { <a class="text-link" asp-action="Preview" asp-route-id="@resource.Id" target="_blank" rel="noopener">Жеке терезеде ашу ↗</a> }</div>@if (Model.FileExists) { <iframe class="pdf-preview" src="@Url.Action("Preview", new { id = resource.Id })#toolbar=1" title="@resource.Title — PDF алдын ала қарау" loading="lazy"></iframe><p class="field-hint preview-hint">PDF көрінбесе, «Жеке терезеде ашу» сілтемесін немесе жүктеу батырмасын пайдаланыңыз.</p> } else { <div class="empty-state"><span class="empty-icon"><svg class="icon"><use href="#i-file" /></svg></span><h3>Файл қолжетімсіз</h3><p>Материалдың файлы табылмады. Авторға немесе әкімшіге хабарласыңыз.</p></div> }</section>
-<section class="panel analysis-panel"><span class="stat-icon orange"><svg class="icon"><use href="#i-spark" /></svg></span><div><h2>AI талдауы</h2><span class="badge badge-muted">Талдау орындалмаған</span><p>Материалды автоматты талдау келесі кезеңде қосылады.</p></div></section></div>
-<aside class="detail-side"><section class="panel download-panel"><span class="download-file-icon"><svg class="icon"><use href="#i-file" /></svg></span><h2>Оқуға дайынсыз ба?</h2><p>Материалды жүктеп алып,<br />өзіңізге ыңғайлы уақытта оқыңыз.</p><div class="file-details"><span class="file-name">@resource.OriginalFileName</span><span>PDF · @size</span></div>@if (Model.FileExists) { <form asp-action="Download" asp-route-id="@resource.Id" method="post" data-download-form><button class="btn btn-primary btn-block"><svg class="icon"><use href="#i-download" /></svg>Материалды жүктеу</button></form> } else { <span class="btn btn-secondary btn-block disabled">Файл қолжетімсіз</span> }@if (User.Identity?.IsAuthenticated == true) { <form asp-controller="Library" asp-action="ToggleFavorite" method="post"><input type="hidden" name="id" value="@resource.Id" /><input type="hidden" name="returnUrl" value="@returnUrl" /><button class="btn btn-secondary btn-block @(Model.IsFavorite ? "is-favorite" : "")"><svg class="icon"><use href="#i-bookmark" /></svg>@(Model.IsFavorite ? "Таңдаулыдан алып тастау" : "Таңдаулыға сақтау")</button></form> } else { <a class="btn btn-secondary btn-block" asp-controller="Account" asp-action="Login" asp-route-returnUrl="@returnUrl"><svg class="icon"><use href="#i-bookmark" /></svg>Таңдаулыға сақтау</a> }<div class="download-count"><svg class="icon"><use href="#i-download" /></svg>@Model.DownloadCount рет жүктелді</div></section>
-@if (Model.CanEdit) { <section class="panel manage-panel"><h3>Материалды басқару</h3><a class="btn btn-secondary btn-block" asp-action="Edit" asp-route-id="@resource.Id"><svg class="icon"><use href="#i-edit" /></svg>Материалды өңдеу</a><form asp-action="SetStatus" method="post"><input type="hidden" name="id" value="@resource.Id" /><input type="hidden" name="status" value="@(resource.Status == ResourceStatus.Published ? ResourceStatus.Archived : ResourceStatus.Published)" /><button class="btn btn-ghost btn-block"><svg class="icon"><use href="@(resource.Status == ResourceStatus.Published ? "#i-archive" : "#i-upload")" /></svg>@(resource.Status == ResourceStatus.Published ? "Архивке жіберу" : "Жариялау")</button></form></section> }
-<div class="detail-tip"><svg class="icon"><use href="#i-shield" /></svg><p>Білімді жауапкершілікпен қолданыңыз. Автордың еңбегін құрметтеңіз.</p></div></aside></div>
+<div class="detail-heading">
+    <div class="detail-badges">
+        <span class="badge">@resource.Subject.Name</span><span class="badge badge-muted">@resource.ResourceType.Name</span>
+        @if (!string.IsNullOrWhiteSpace(analysis.Difficulty)) { <span class="difficulty-label">@analysis.Difficulty</span> }
+        @if (resource.Status != ResourceStatus.Published) { <span class="badge badge-orange">@(resource.Status == ResourceStatus.Draft ? "Жоба" : "Архив")</span> }
+        @if (resource.AccessLevel == AccessLevel.Authenticated) { <span class="badge badge-muted"><svg class="icon"><use href="#i-lock" /></svg>Тіркелген оқырмандарға</span> }
+    </div>
+    <h1>@resource.Title</h1>
+    <div class="detail-byline"><span class="mini-avatar">@(string.IsNullOrWhiteSpace(resource.Owner.FullName) ? "E" : resource.Owner.FullName[..1])</span><strong>@resource.Owner.FullName</strong><span>·</span><time datetime="@resource.CreatedAtUtc.ToString("O")">@resource.CreatedAtUtc.AddHours(5).ToString("dd.MM.yyyy")</time><span>·</span><span><svg class="icon"><use href="#i-eye" /></svg>@Model.ViewCount қаралым</span></div>
+</div>
+<div class="detail-layout">
+    <div class="detail-main">
+        <section class="panel">
+            <div class="panel-header"><h2>Материал туралы</h2><span class="file-type-label">PDF</span></div>
+            <p class="detail-description">@resource.Description</p>
+            @if (resource.Topic != null) { <div class="topic-line"><span class="text-muted">Тақырып</span><strong>@resource.Topic.Name</strong></div> }
+            @if (resource.ResourceTags.Any()) { <div class="tag-list">@foreach (var item in resource.ResourceTags) { <a class="tag" asp-action="Index" asp-route-TagId="@item.TagId">#@item.Tag.Name</a> }</div> }
+        </section>
+
+        <section class="panel ai-summary" id="ai-analysis"
+                 data-processing-status-url="@(Model.CanEdit ? Url.Action("Status", "Processing", new { id = resource.Id }) : null)"
+                 data-processing-active="@((Model.CanEdit && processingActive).ToString().ToLowerInvariant())"
+                 data-processing-state="@analysis.Status" data-processing-job-state="@resource.ProcessingJob?.Status.ToString()">
+            <div class="panel-header">
+                <div class="ai-heading"><span class="stat-icon orange"><svg class="icon"><use href="#i-spark" /></svg></span><div><h2>AI қорытындысы</h2><span class="ai-kicker">Құжат мәтіні негізінде жасалған талдау</span></div></div>
+                <span class="badge @(analysis.Status == "Failed" ? "badge-orange" : "badge-muted") ai-status" role="status" aria-live="polite"><span data-ai-status-label>@analysis.StatusLabel</span></span>
+            </div>
+            @if (analysis.Status == "Completed")
+            {
+                <div class="ai-topic"><span>Негізгі тақырып</span><strong>@analysis.DetectedTopic</strong></div>
+                <p class="ai-summary-text">@analysis.Summary</p>
+                @if (analysis.Keywords.Any()) { <div class="keyword-chips" aria-label="AI кілт сөздері">@foreach (var keyword in analysis.Keywords) { <a class="keyword-chip" asp-action="Index" asp-route-Search="@keyword">@keyword</a> }</div> }
+                <div class="ai-facts">
+                    @if (!string.IsNullOrWhiteSpace(analysis.Difficulty)) { <span class="difficulty-label">@analysis.Difficulty</span> }
+                    <span>@analysis.Provider · @analysis.Model</span>
+                    @if (analysis.AnalyzedAtUtc.HasValue) { <time datetime="@analysis.AnalyzedAtUtc.Value.ToString("O")">@analysis.AnalyzedAtUtc.Value.AddHours(5).ToString("dd.MM.yyyy HH:mm")</time> }
+                </div>
+                @if (analysis.IsPartial) { <p class="processing-note"><strong>Құжаттың бір бөлігі талданды.</strong> @analysis.SourceCharacters таңбаның @analysis.AnalyzedCharacters таңбасы қамтылды. Қорытынды толық құжатты сипаттамауы мүмкін.</p> }
+                @if (Model.CanEdit && analysis.HasSuggestion && resource.Analysis?.SuggestedSubjectId is int subjectId)
+                {
+                    <div class="ai-suggestion">
+                        <h3>Ұсынылған жіктеу</h3>
+                        <p><strong>@analysis.SuggestedSubjectName</strong>@if (!string.IsNullOrWhiteSpace(analysis.SuggestedTopicName)) { <span> / @analysis.SuggestedTopicName</span> }<br />Қазіргі пән мен тақырыпты ауыстыру үшін ұсынысты растаңыз.</p>
+                        <form asp-controller="Processing" asp-action="AcceptSuggestion" method="post">
+                            <input type="hidden" name="id" value="@resource.Id" /><input type="hidden" name="fileHash" value="@resource.Analysis.AnalyzedFileHash" />
+                            <input type="hidden" name="subjectId" value="@subjectId" /><input type="hidden" name="topicId" value="@resource.Analysis.SuggestedTopicId" />
+                            <button class="btn btn-secondary" type="submit"><svg class="icon"><use href="#i-check" /></svg>Пән мен тақырыпты растау</button>
+                        </form>
+                    </div>
+                }
+            }
+            else if (analysis.Status is "Pending" or "Processing")
+            {
+                <p class="ai-state-message analysis-loading"><span class="loading-spinner" aria-hidden="true"></span>@(analysis.Status == "Pending" ? "Талдау тапсырмасы кезекте. Бетті ашық қалдыра аласыз." : "Құжат өңделуде. Дайын болғанда күйі жаңарады.")</p>
+            }
+            else if (analysis.Status == "NotConfigured")
+            {
+                <p class="ai-state-message">AI қызметі бапталмаған. Құжатты оқу, жүктеу және мәтін бойынша іздеу қолжетімді.</p>
+            }
+            else if (analysis.Status == "Failed")
+            {
+                <p class="ai-state-message">@(analysis.Message ?? "Талдауды аяқтау мүмкін болмады. Біраздан кейін қайта орындап көріңіз.")</p>
+            }
+            else
+            {
+                <p class="ai-state-message">@(analysis.IsStale ? "PDF жаңартылған. Жаңа файл үшін талдауды қайта орындаңыз." : "Бұл материалға AI талдауы әлі орындалмаған.")</p>
+            }
+
+            <div class="extraction-info">
+                <strong data-extraction-label>@analysis.ExtractionStatusLabel</strong>
+                <span data-extraction-coverage>@if (analysis.TotalPages > 0) { <text>@analysis.TotalPages беттің @analysis.ExtractedPages беті · @analysis.ExtractedCharacters таңба</text> }</span>
+                @if (!string.IsNullOrWhiteSpace(analysis.ExtractionMessage)) { <p>@analysis.ExtractionMessage</p> }
+                @if (analysis.ExtractionStatus == "NoText" && string.IsNullOrWhiteSpace(analysis.ExtractionMessage)) { <p>Құжатта оқылатын мәтін табылмады. Скан PDF үшін OCR қажет болуы мүмкін.</p> }
+                @if (analysis.ExtractionTruncated) { <p class="processing-note">Мәтін алу шегіне байланысты құжаттың бір бөлігі ғана іздеуге қосылды.</p> }
+            </div>
+            @if (Model.CanEdit)
+            {
+                <div class="ai-actions">
+                    <form asp-controller="Processing" asp-action="Analyze" method="post"><input type="hidden" name="id" value="@resource.Id" /><button type="submit" class="btn btn-primary" disabled="@(processingActive || !analysis.IsConfigured || !Model.FileExists)"><svg class="icon"><use href="#i-spark" /></svg>@(analysis.Status is "Completed" or "Failed" || analysis.IsStale ? "Қайта талдау" : "AI талдауын орындау")</button></form>
+                    <p class="field-hint">AI ұсынған жіктеу тек сіз растағаннан кейін сақталады.</p>
+                </div>
+                @if (processingActive) { <p class="ai-poll-note" data-polling-note role="status" aria-live="polite">Күй автоматты түрде жаңартылып отырады.</p> }
+            }
+        </section>
+
+        <section class="preview-panel panel" id="pdf-preview">
+            <div class="panel-header"><h2><svg class="icon"><use href="#i-file" /></svg>Алдын ала қарау</h2>@if (Model.FileExists) { <a class="text-link" href="@(previewUrl + bookmarkFragment)" target="_blank" rel="noopener">Жеке терезеде ашу ↗</a> }</div>
+            @if (Model.FileExists)
+            {
+                <iframe class="pdf-preview" src="@(previewUrl + bookmarkFragment)" title="@resource.Title — PDF алдын ала қарау" loading="lazy"></iframe>
+                <p class="field-hint preview-hint">PDF көрінбесе, «Жеке терезеде ашу» сілтемесін немесе жүктеу батырмасын пайдаланыңыз.</p>
+            }
+            else { <div class="empty-state"><span class="empty-icon"><svg class="icon"><use href="#i-file" /></svg></span><h3>Файл қолжетімсіз</h3><p>Материалдың файлы табылмады. Авторға немесе әкімшіге хабарласыңыз.</p></div> }
+        </section>
+    </div>
+
+    <aside class="detail-side">
+        <section class="panel download-panel">
+            <span class="download-file-icon"><svg class="icon"><use href="#i-file" /></svg></span><h2>Оқуға дайынсыз ба?</h2><p>Материалды жүктеп алып,<br />өзіңізге ыңғайлы уақытта оқыңыз.</p><div class="file-details"><span class="file-name">@resource.OriginalFileName</span><span>PDF · @size</span></div>
+            @if (Model.FileExists) { <form asp-action="Download" asp-route-id="@resource.Id" method="post" data-download-form><button class="btn btn-primary btn-block"><svg class="icon"><use href="#i-download" /></svg>Материалды жүктеу</button></form> } else { <span class="btn btn-secondary btn-block disabled">Файл қолжетімсіз</span> }
+            @if (User.Identity?.IsAuthenticated == true) { <form asp-controller="Library" asp-action="ToggleFavorite" method="post"><input type="hidden" name="id" value="@resource.Id" /><input type="hidden" name="returnUrl" value="@returnUrl" /><button class="btn btn-secondary btn-block @(Model.IsFavorite ? "is-favorite" : "")"><svg class="icon"><use href="#i-bookmark" /></svg>@(Model.IsFavorite ? "Таңдаулыдан алып тастау" : "Таңдаулыға сақтау")</button></form> } else { <a class="btn btn-secondary btn-block" asp-controller="Account" asp-action="Login" asp-route-returnUrl="@returnUrl"><svg class="icon"><use href="#i-bookmark" /></svg>Таңдаулыға сақтау</a> }
+            <button type="button" class="btn btn-secondary btn-block material-link-copy" data-copy-material-link="@returnUrl"><svg class="icon"><use href="#i-arrow" /></svg>Материал сілтемесін көшіру</button><span class="copy-link-result" data-copy-link-result role="status" aria-live="polite"></span>
+            <div class="download-count"><svg class="icon"><use href="#i-download" /></svg>@Model.DownloadCount рет жүктелді</div>
+        </section>
+
+        @if (User.Identity?.IsAuthenticated == true && Model.FileExists)
+        {
+            <section class="panel bookmark-panel">
+                <h3><svg class="icon"><use href="#i-bookmark" /></svg>Жеке бетбелгі</h3><p>Оқуды тоқтатқан бетіңізді сақтаңыз. Бетбелгіңіз тек өзіңізге көрінеді.</p>
+                <form asp-controller="Library" asp-action="SaveBookmark" method="post" class="bookmark-form">
+                    <input type="hidden" name="id" value="@resource.Id" />
+                    <div class="form-field"><label for="bookmark-page">PDF беті</label><input type="number" id="bookmark-page" name="pageNumber" min="1" max="@(analysis.TotalPages > 0 ? analysis.TotalPages : 10000)" value="@(Model.BookmarkPage ?? 1)" inputmode="numeric" required /></div>
+                    <button class="btn btn-secondary" type="submit">Бетті сақтау</button>
+                </form>
+                @if (Model.BookmarkPage.HasValue) { <p class="bookmark-current">Сақталған бет: <strong>@Model.BookmarkPage</strong>. Алдын ала қарау осы беттен ашылады.</p> }
+                <p class="field-hint">PDF файлы ауысса, ескі бетбелгі қолданылмайды.</p>
+            </section>
+        }
+        @if (Model.CanEdit)
+        {
+            <section class="panel manage-panel"><h3>Материалды басқару</h3><a class="btn btn-secondary btn-block" asp-action="Edit" asp-route-id="@resource.Id"><svg class="icon"><use href="#i-edit" /></svg>Материалды өңдеу</a><form asp-action="SetStatus" method="post"><input type="hidden" name="id" value="@resource.Id" /><input type="hidden" name="status" value="@(resource.Status == ResourceStatus.Published ? ResourceStatus.Archived : ResourceStatus.Published)" /><button class="btn btn-ghost btn-block"><svg class="icon"><use href="@(resource.Status == ResourceStatus.Published ? "#i-archive" : "#i-upload")" /></svg>@(resource.Status == ResourceStatus.Published ? "Архивке жіберу" : "Жариялау")</button></form></section>
+        }
+        <div class="detail-tip"><svg class="icon"><use href="#i-shield" /></svg><p>Білімді жауапкершілікпен қолданыңыз. Автордың еңбегін құрметтеңіз.</p></div>
+    </aside>
+</div>
+
+<section class="related-resources" aria-labelledby="related-heading">
+    <div class="section-heading"><div><span class="eyebrow">ОҚУДЫ ЖАЛҒАСТЫРЫҢЫЗ</span><h2 id="related-heading">@Model.Recommendations.Heading</h2></div></div>
+    <p class="related-explanation">@(Model.Recommendations.IsSemantic ? "Ұсыныстар сақталған AI embedding векторларының мағыналық ұқсастығына сүйенеді." : "Ұсыныстар пән, тақырып және тегтердің сәйкестігі бойынша таңдалды.")</p>
+    @if (Model.Recommendations.Items.Any()) { <div class="resource-grid">@foreach (var related in Model.Recommendations.Items) { <partial name="_ResourceCard" model="related" /> }</div> }
+    else { <div class="panel"><p class="ai-state-message">Әзірге қолжетімді ұқсас материалдар табылмады. Каталогтағы басқа ресурстарды қарап көріңіз.</p></div> }
+</section>
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/phase2.css" asp-append-version="true" />
+}
+@section Scripts {
+    <script src="~/js/phase2.js" asp-append-version="true" defer></script>
+}

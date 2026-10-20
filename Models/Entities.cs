@@ -18,7 +18,7 @@ public class ApplicationUser : IdentityUser
 
 public enum AccessLevel { Public, Authenticated }
 public enum ResourceStatus { Draft, Published, Archived }
-public enum AnalysisStatus { NotAnalyzed, Pending, Completed, Failed }
+public enum AnalysisStatus { NotAnalyzed, Pending, Completed, Failed, Processing, NotConfigured }
 
 public class Subject
 {
@@ -73,6 +73,10 @@ public class Resource
     public ICollection<ResourceView> Views { get; set; } = [];
     public ICollection<ResourceDownload> Downloads { get; set; } = [];
     public ResourceAnalysis? Analysis { get; set; }
+    public ResourceTextExtraction? TextExtraction { get; set; }
+    public ResourceEmbedding? Embedding { get; set; }
+    public ProcessingJob? ProcessingJob { get; set; }
+    public ResourceSearchDocument? SearchDocument { get; set; }
 }
 public class ResourceTag
 {
@@ -121,4 +125,14 @@ public class ResourceAnalysis
     public DateTime? AnalyzedAtUtc { get; set; }
     [MaxLength(100)] public string? ErrorCode { get; set; }
     [MaxLength(64)] public string? AnalyzedFileHash { get; set; }
+    public int? SuggestedSubjectId { get; set; }
+    public Subject? SuggestedSubject { get; set; }
+    public int? SuggestedTopicId { get; set; }
+    public Topic? SuggestedTopic { get; set; }
+    [MaxLength(500)] public string? ErrorMessage { get; set; }
+    public int AnalyzedCharacters { get; set; }
+    public int SourceCharacters { get; set; }
+    public int ProcessedPages { get; set; }
+    public int TotalPages { get; set; }
+    public bool IsPartial { get; set; }
 }

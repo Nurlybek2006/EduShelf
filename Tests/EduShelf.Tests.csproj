@@ -15,5 +15,6 @@
     </PackageReference>
     <ProjectReference Include="..\EduShelf.csproj" />
     <Using Include="Xunit" />
+    <None Update="Fixtures\**" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

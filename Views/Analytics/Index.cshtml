@@ -1,0 +1,89 @@
+@model AnalyticsReportViewModel
+@{
+    ViewData["Title"] = "Материалдар аналитикасы";
+    var from = Model.Query.From?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+    var to = Model.Query.To?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+    var maxDaily = Model.DailyActivity.Select(d => Math.Max(d.Views, d.Downloads)).DefaultIfEmpty(0).Max();
+    string Points(bool views) => string.Join(" ", Model.DailyActivity.Select((day, i) =>
+        $"{(20 + i * 960d / Math.Max(1, Model.DailyActivity.Count - 1)).ToString("0.##", CultureInfo.InvariantCulture)},{(185 - (views ? day.Views : day.Downloads) * 165d / Math.Max(1, maxDaily)).ToString("0.##", CultureInfo.InvariantCulture)}"));
+}
+@section Styles {
+    <link rel="stylesheet" href="~/css/analytics.css" asp-append-version="true" />
+}
+<div class="analytics-page">
+    <div class="page-heading">
+        <div><span class="eyebrow">ДЕРЕКТЕРДЕН НӘТИЖЕГЕ</span><h1>Материалдар аналитикасы</h1><p>@(Model.IsAdministrator ? "Бүкіл жүйенің оқу белсенділігі мен материалдар қоры." : "Өз материалдарыңыздың оқу белсенділігі мен нәтижелері.")</p></div>
+        @if (Model.IsValid)
+        {
+            <a class="btn btn-secondary" asp-action="Export" asp-route-From="@from" asp-route-To="@to"><svg class="icon" aria-hidden="true"><use href="#i-download" /></svg>CSV жүктеу</a>
+        }
+    </div>
+    <form method="get" asp-action="Index" class="panel analytics-filters">
+        <div class="form-field"><label for="analytics-from">Басталу күні</label><input id="analytics-from" name="From" type="date" value="@from" required /><span class="field-validation-error">@Html.ValidationMessage("From")</span></div>
+        <div class="form-field"><label for="analytics-to">Аяқталу күні</label><input id="analytics-to" name="To" type="date" value="@to" required /><span class="field-validation-error">@Html.ValidationMessage("To")</span></div>
+        <button class="btn btn-primary" type="submit">Есепті көрсету</button><a class="text-link" asp-action="Index">Соңғы 30 күн</a>
+        <p class="analytics-range-hint">Күндер UTC+05:00 (Қызылорда) бойынша, екі шекара да есепке кіреді. Ең көбі — 366 күн.</p>
+    </form>
+    @if (!Model.IsValid)
+    {
+        <div class="notice notice-error" role="alert">Есепті құру үшін күн аралығын түзетіңіз.</div>
+    }
+    else
+    {
+        <section class="stat-grid analytics-kpis" aria-label="Негізгі көрсеткіштер">
+            <div class="stat-card"><span class="stat-icon"><svg class="icon" aria-hidden="true"><use href="#i-folder" /></svg></span><div><strong>@Model.ResourceCount.ToString("N0")</strong><span>Материал · қазіргі қоры</span></div></div>
+            <div class="stat-card"><span class="stat-icon orange"><svg class="icon" aria-hidden="true"><use href="#i-eye" /></svg></span><div><strong>@Model.ViewCount.ToString("N0")</strong><span>Қаралым · таңдалған аралықта</span></div></div>
+            <div class="stat-card"><span class="stat-icon sand"><svg class="icon" aria-hidden="true"><use href="#i-download" /></svg></span><div><strong>@Model.DownloadCount.ToString("N0")</strong><span>Жүктеу · таңдалған аралықта</span></div></div>
+        </section>
+        @if (Model.ResourceCount == 0)
+        {
+            <div class="panel empty-state"><span class="empty-icon"><svg class="icon" aria-hidden="true"><use href="#i-chart" /></svg></span><h2>Алғашқы нәтижелер алда</h2><p>Материал қосылғаннан кейін оның нақты статистикасы осы жерде көрсетіледі.</p><a class="btn btn-primary" asp-controller="Resources" asp-action="Create">Материал қосу</a></div>
+        }
+        <section class="panel" aria-labelledby="daily-heading">
+            <div class="panel-header"><h2 id="daily-heading">Күндік оқу белсенділігі</h2><span class="analytics-date-label">@Model.Query.From?.ToString("dd.MM.yyyy") — @Model.Query.To?.ToString("dd.MM.yyyy")</span></div>
+            <div class="analytics-legend"><span class="analytics-key key-views">Қаралым</span><span class="analytics-key key-downloads">Жүктеу</span><span>Ең жоғары күндік көрсеткіш: @maxDaily</span></div>
+            @if (Model.ViewCount == 0 && Model.DownloadCount == 0)
+            {
+                <p class="analytics-empty">Бұл аралықта қарау немесе жүктеу оқиғалары тіркелмеген. Күндік кестеде нөлдер көрсетіледі.</p>
+            }
+            <svg class="analytics-chart" viewBox="0 0 1000 210" role="img" aria-labelledby="activity-chart-title activity-chart-desc">
+                <title id="activity-chart-title">Күндер бойынша қаралым мен жүктеу</title><desc id="activity-chart-desc">Нақты сандар төмендегі күндік кестеде берілген. Қаралым қою көк, жүктеу қызғылт сары сызықпен көрсетілген.</desc>
+                <path class="analytics-grid-line" d="M20 20 H980 M20 102.5 H980 M20 185 H980" />
+                <polyline class="analytics-line line-views" points="@Points(true)" />
+                <polyline class="analytics-line line-downloads" points="@Points(false)" />
+            </svg>
+            <div class="analytics-chart-dates"><span>@Model.Query.From?.ToString("dd.MM.yyyy")</span><span>@Model.Query.To?.ToString("dd.MM.yyyy")</span></div>
+            <details class="analytics-details"><summary>Күндік көрсеткіштер кестесі</summary><div class="table-wrap" tabindex="0" aria-label="Күндік белсенділік кестесі"><table class="data-table"><caption class="analytics-caption">Оқиға болмаған күндер де есепке кіреді.</caption><thead><tr><th scope="col">Күн</th><th scope="col">Қаралым</th><th scope="col">Жүктеу</th></tr></thead><tbody>@foreach (var day in Model.DailyActivity) { <tr><th scope="row">@day.Day.ToString("dd.MM.yyyy")</th><td>@day.Views</td><td>@day.Downloads</td></tr> }</tbody></table></div></details>
+        </section>
+        <div class="analytics-columns">
+            @foreach (var table in new[] { (Title: "Ең көп қаралған", Rows: Model.MostViewed), (Title: "Ең көп жүктелген", Rows: Model.MostDownloaded) })
+            {
+                <section class="panel"><div class="panel-header"><h2>@table.Title</h2><span class="analytics-date-label">Алғашқы 10</span></div>
+                    @if (table.Rows.Count == 0) { <p class="analytics-empty">Таңдалған аралықта бұл оқиға тіркелмеген.</p> }
+                    else
+                    {
+                        <div class="table-wrap" tabindex="0" aria-label="@table.Title"><table class="data-table"><thead><tr><th scope="col">Материал</th><th scope="col">Қаралым</th><th scope="col">Жүктеу</th></tr></thead><tbody>@foreach (var item in table.Rows) { <tr><td><a asp-controller="Resources" asp-action="Details" asp-route-id="@item.ResourceId">@item.Title</a><small class="table-subtitle">@item.Subject</small></td><td>@item.Views</td><td>@item.Downloads</td></tr> }</tbody></table></div>
+                    }
+                </section>
+            }
+        </div>
+        <section class="panel"><div class="panel-header"><h2>Пәндер бойынша жария материалдар</h2><span class="analytics-date-label">Қазіргі қоры: @Model.PublishedCount</span></div>
+            <p class="analytics-note">Материалдар мен AI жіктелуі қазіргі сақталған күйді көрсетеді; күн сүзгісі қаралым мен жүктеу оқиғаларына қолданылады. Атауы бойынша алғашқы 200 пән көрсетіледі.</p>
+            <partial name="_CountBreakdown" model="Model.Subjects" />
+        </section>
+        <section class="panel"><div class="panel-header"><h2>Студент белсенділігі</h2><span class="analytics-date-label">Соңғы белсенділігі бойынша 100 студент</span></div>
+            <p class="analytics-note">Тек Student рөлі бар тіркелген пайдаланушылар. Аноним оқиғалар жалпы сандарға кіреді. Бірегей материал саны тек қарау оқиғаларымен есептеледі.</p>
+            @if (Model.StudentActivity.Count == 0) { <p class="analytics-empty">Таңдалған аралықта студент белсенділігі тіркелмеген.</p> }
+            else
+            {
+                <div class="table-wrap" tabindex="0" aria-label="Студенттердің белсенділік кестесі"><table class="data-table"><thead><tr><th scope="col">Студент</th><th scope="col">Қаралым</th><th scope="col">Жүктеу</th><th scope="col">Бірегей материал</th><th scope="col">Соңғы белсенділік (UTC+05:00)</th></tr></thead><tbody>@foreach (var student in Model.StudentActivity) { <tr><th scope="row">@(string.IsNullOrWhiteSpace(student.FullName) ? "Студент" : student.FullName)</th><td>@student.Views</td><td>@student.Downloads</td><td>@student.UniqueViewedResources</td><td><time datetime="@(DateTime.SpecifyKind(student.LastActivityUtc, DateTimeKind.Utc).ToString("O"))">@student.LastActivityUtc.AddHours(5).ToString("dd.MM.yyyy HH:mm")</time></td></tr> }</tbody></table></div>
+            }
+        </section>
+        <section class="panel"><div class="panel-header"><h2>AI жіктелуі</h2><span class="analytics-date-label">Файлдың қазіргі нұсқасы</span></div>
+            <div class="analytics-analysis-totals"><div><strong>@Model.AnalyzedCount</strong><span>Талданған</span></div><div><strong>@Model.UnanalyzedCount</strong><span>Талданбаған</span></div></div>
+            <p class="analytics-note">«Талданған» — файл хэші сәйкес келетін аяқталған талдау. Файл ауысқаннан кейін ескі нәтиже қиындық пен тақырып есебіне кірмейді.</p>
+            <div class="analytics-columns"><div><h3>Талдау статустары</h3><partial name="_CountBreakdown" model="Model.AnalysisStatuses" /></div><div><h3>Қиындық деңгейлері</h3><partial name="_CountBreakdown" model="Model.Difficulties" /></div></div>
+            <h3>AI анықтаған тақырыптар</h3><p class="analytics-note">Саны бойынша алғашқы 20 тақырып.</p><partial name="_CountBreakdown" model="Model.DetectedTopics" />
+        </section>
+    }
+</div>

@@ -29,6 +29,21 @@ public class LibraryController(ApplicationDbContext db, ResourceService resource
         catch (KeyNotFoundException) { return NotFound(); }
         return !string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl) ? LocalRedirect(returnUrl) : RedirectToAction("Details", "Resources", new { id });
     }
+    [HttpPost]
+    public async Task<IActionResult> SaveBookmark(int id, int pageNumber, CancellationToken ct)
+    {
+        var resource = await db.Resources.AsNoTracking().VisibleTo(User).Include(r => r.TextExtraction).SingleOrDefaultAsync(r => r.Id == id, ct);
+        if (resource is null) return NotFound();
+        var maximum = resource.TextExtraction?.ExtractedFileHash == resource.FileHash && resource.TextExtraction.TotalPages > 0 ? resource.TextExtraction.TotalPages : 10000;
+        if (!ModelState.IsValid || pageNumber < 1 || pageNumber > maximum) return BadRequest();
+        var userId = ResourceAccess.UserId(User)!;
+        var bookmark = await db.PageBookmarks.FindAsync([userId, id], ct);
+        if (bookmark is null) { bookmark = new PageBookmark { UserId = userId, ResourceId = id }; db.PageBookmarks.Add(bookmark); }
+        bookmark.PageNumber = pageNumber; bookmark.FileHash = resource.FileHash; bookmark.UpdatedAtUtc = DateTime.UtcNow;
+        try { await db.SaveChangesAsync(ct); TempData["Success"] = $"{pageNumber}-бет жеке бетбелгіге сақталды."; }
+        catch (DbUpdateException) { TempData["Error"] = "Бетбелгі сақталмады. Бетті жаңартып, қайта көріңіз."; }
+        return RedirectToAction("Details", "Resources", new { id });
+    }
     [HttpGet]
     public async Task<IActionResult> History(CancellationToken ct)
     {
@@ -47,16 +62,7 @@ public class LibraryController(ApplicationDbContext db, ResourceService resource
         return View(new PersonalLibraryViewModel { Title = User.IsInRole(AppRoles.Admin) ? "Барлық материалдар" : "Менің материалдарым", Description = "Материалдарды өңдеңіз, жариялаңыз және архивтеңіз.", Items = await resources.CardListAsync(query, User, ct) });
     }
     [Authorize(Roles = AppRoles.Teacher + "," + AppRoles.Admin), HttpGet]
-    public async Task<IActionResult> Analytics(CancellationToken ct)
-    {
-        var query = OwnedResources();
-        return View(new AnalyticsViewModel
-        {
-            ResourceCount = await query.CountAsync(ct), ViewCount = await query.SelectMany(r => r.Views).CountAsync(ct),
-            DownloadCount = await query.SelectMany(r => r.Downloads).CountAsync(ct),
-            Items = await resources.CardListAsync(query.OrderByDescending(r => r.Views.Count).ThenBy(r => r.Id), User, ct)
-        });
-    }
+    public IActionResult Analytics(CancellationToken ct) => RedirectToAction("Index", "Analytics");
     private IQueryable<Resource> OwnedResources()
     {
         var userId = ResourceAccess.UserId(User);

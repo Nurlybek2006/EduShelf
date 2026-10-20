@@ -16,6 +16,12 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<ResourceView> ResourceViews => Set<ResourceView>();
     public DbSet<ResourceDownload> ResourceDownloads => Set<ResourceDownload>();
     public DbSet<ResourceAnalysis> ResourceAnalyses => Set<ResourceAnalysis>();
+    public DbSet<ResourceTextExtraction> ResourceTextExtractions => Set<ResourceTextExtraction>();
+    public DbSet<ResourceTextPage> ResourceTextPages => Set<ResourceTextPage>();
+    public DbSet<ResourceEmbedding> ResourceEmbeddings => Set<ResourceEmbedding>();
+    public DbSet<ProcessingJob> ProcessingJobs => Set<ProcessingJob>();
+    public DbSet<ResourceSearchDocument> ResourceSearchDocuments => Set<ResourceSearchDocument>();
+    public DbSet<PageBookmark> PageBookmarks => Set<PageBookmark>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -53,5 +59,25 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
         b.Entity<ResourceAnalysis>().HasKey(x => x.ResourceId);
         b.Entity<ResourceAnalysis>().HasOne(x => x.Resource).WithOne(x => x.Analysis).HasForeignKey<ResourceAnalysis>(x => x.ResourceId).OnDelete(DeleteBehavior.Cascade);
         b.Entity<ResourceAnalysis>().Property(x => x.Status).HasConversion<string>().HasMaxLength(20);
+        b.Entity<ResourceAnalysis>().HasOne(x => x.SuggestedSubject).WithMany().HasForeignKey(x => x.SuggestedSubjectId).OnDelete(DeleteBehavior.SetNull);
+        b.Entity<ResourceAnalysis>().HasOne(x => x.SuggestedTopic).WithMany().HasForeignKey(x => x.SuggestedTopicId).OnDelete(DeleteBehavior.SetNull);
+        b.Entity<ResourceTextExtraction>().HasKey(x => x.ResourceId);
+        b.Entity<ResourceTextExtraction>().HasOne(x => x.Resource).WithOne(x => x.TextExtraction).HasForeignKey<ResourceTextExtraction>(x => x.ResourceId).OnDelete(DeleteBehavior.Cascade);
+        b.Entity<ResourceTextExtraction>().Property(x => x.Status).HasConversion<string>().HasMaxLength(20);
+        b.Entity<ResourceTextPage>().HasKey(x => new { x.ResourceId, x.PageNumber });
+        b.Entity<ResourceTextPage>().HasOne(x => x.Extraction).WithMany(x => x.Pages).HasForeignKey(x => x.ResourceId).OnDelete(DeleteBehavior.Cascade);
+        b.Entity<ResourceEmbedding>().HasKey(x => x.ResourceId);
+        b.Entity<ResourceEmbedding>().HasOne(x => x.Resource).WithOne(x => x.Embedding).HasForeignKey<ResourceEmbedding>(x => x.ResourceId).OnDelete(DeleteBehavior.Cascade);
+        b.Entity<ResourceEmbedding>().HasIndex(x => new { x.Model, x.Dimensions });
+        b.Entity<ProcessingJob>().HasKey(x => x.ResourceId);
+        b.Entity<ProcessingJob>().HasOne(x => x.Resource).WithOne(x => x.ProcessingJob).HasForeignKey<ProcessingJob>(x => x.ResourceId).OnDelete(DeleteBehavior.Cascade);
+        b.Entity<ProcessingJob>().Property(x => x.Status).HasConversion<string>().HasMaxLength(20);
+        b.Entity<ProcessingJob>().HasIndex(x => new { x.Status, x.NotBeforeUtc });
+        b.Entity<ResourceSearchDocument>().HasKey(x => x.ResourceId).HasName("PK_ResourceSearchDocuments");
+        b.Entity<ResourceSearchDocument>().HasOne(x => x.Resource).WithOne(x => x.SearchDocument).HasForeignKey<ResourceSearchDocument>(x => x.ResourceId).OnDelete(DeleteBehavior.Cascade);
+        b.Entity<PageBookmark>().HasKey(x => new { x.UserId, x.ResourceId });
+        b.Entity<PageBookmark>().HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
+        b.Entity<PageBookmark>().HasOne(x => x.Resource).WithMany().HasForeignKey(x => x.ResourceId).OnDelete(DeleteBehavior.Restrict);
+        b.Entity<PageBookmark>().ToTable(t => t.HasCheckConstraint("CK_PageBookmarks_PageNumber", "[PageNumber] > 0"));
     }
 }

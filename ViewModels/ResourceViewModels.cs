@@ -9,6 +9,8 @@ public class CatalogQuery
     public int? SubjectId { get; set; }
     public int? TopicId { get; set; }
     public int? TypeId { get; set; }
+    public int? TagId { get; set; }
+    public string? Difficulty { get; set; }
     public string Sort { get; set; } = "new";
     public int Page { get; set; } = 1;
     public const int PageSize = 12;
@@ -27,6 +29,8 @@ public class ResourceCardViewModel
     public bool IsFavorite { get; set; }
     public AccessLevel AccessLevel { get; set; }
     public ResourceStatus Status { get; set; }
+    public string? Difficulty { get; set; }
+    public string? Snippet { get; set; }
 }
 public class HomeViewModel
 {
@@ -46,6 +50,8 @@ public class CatalogViewModel
     public List<Subject> Subjects { get; set; } = [];
     public List<Topic> Topics { get; set; } = [];
     public List<ResourceType> ResourceTypes { get; set; } = [];
+    public List<Tag> Tags { get; set; } = [];
+    public string SearchMode { get; set; } = "Мәтін бойынша іздеу";
 }
 public class ResourceDetailsViewModel
 {
@@ -55,6 +61,9 @@ public class ResourceDetailsViewModel
     public bool FileExists { get; set; }
     public int ViewCount { get; set; }
     public int DownloadCount { get; set; }
+    public ProcessingPanelViewModel Processing { get; set; } = new();
+    public RelatedResourcesViewModel Recommendations { get; set; } = new();
+    public int? BookmarkPage { get; set; }
 }
 public class ResourceEditViewModel
 {

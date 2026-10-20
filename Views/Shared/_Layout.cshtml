@@ -17,6 +17,7 @@
     <meta name="description" content="EduShelf — білім алуға және бөлісуге арналған электрондық оқу ресурстарының кітапханасы." />
     <title>@ViewData["Title"] · EduShelf</title>
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    @await RenderSectionAsync("Styles", required: false)
 </head>
 <body>
     <a class="skip-link" href="#main-content">Негізгі мазмұнға өту</a>
@@ -39,7 +40,7 @@
             <div class="sidebar-label">ЖЕКЕ КАБИНЕТ</div>
             <nav class="nav-links">
                 <a class="nav-link @Active("Library", "Mine")" asp-controller="Library" asp-action="Mine"><svg class="icon"><use href="#i-folder" /></svg>Менің материалдарым</a>
-                <a class="nav-link @Active("Library", "Analytics")" asp-controller="Library" asp-action="Analytics"><svg class="icon"><use href="#i-chart" /></svg>Аналитика</a>
+                <a class="nav-link @Active("Analytics")" asp-controller="Analytics" asp-action="Index"><svg class="icon"><use href="#i-chart" /></svg>Аналитика</a>
                 @if (User.IsInRole("Admin"))
                 {
                     <a class="nav-link @(controller == "Admin" ? "active" : "")" asp-controller="Admin" asp-action="Index"><svg class="icon"><use href="#i-settings" /></svg>Басқару</a>

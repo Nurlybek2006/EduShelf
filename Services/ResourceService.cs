@@ -8,13 +8,14 @@ using Microsoft.Extensions.Options;
 
 namespace EduShelf.Services;
 
-public class ResourceService(ApplicationDbContext db, IFileStorage storage, IOptions<StorageOptions> storageOptions, ILogger<ResourceService> logger)
+public class ResourceService(ApplicationDbContext db, IFileStorage storage, IOptions<StorageOptions> storageOptions, ILogger<ResourceService> logger, CatalogSearchService? searchService = null)
 {
     public static IQueryable<ResourceCardViewModel> Cards(IQueryable<Resource> query, string? userId) => query.Select(r => new ResourceCardViewModel
     {
         Id = r.Id, Title = r.Title, Description = r.Description, SubjectName = r.Subject.Name,
         TypeName = r.ResourceType.Name, OwnerName = r.Owner.FullName, ViewCount = r.Views.Count,
-        DownloadCount = r.Downloads.Count, FileSize = r.FileSize, Status = r.Status, AccessLevel = r.AccessLevel
+        DownloadCount = r.Downloads.Count, FileSize = r.FileSize, Status = r.Status, AccessLevel = r.AccessLevel,
+        Difficulty = r.Analysis != null && r.Analysis.Status == AnalysisStatus.Completed && r.Analysis.AnalyzedFileHash == r.FileHash ? r.Analysis.Difficulty : null
     });
 
     public async Task<List<ResourceCardViewModel>> CardListAsync(IQueryable<Resource> query, ClaimsPrincipal user, CancellationToken ct = default)
@@ -37,27 +38,44 @@ public class ResourceService(ApplicationDbContext db, IFileStorage storage, IOpt
         if (query.Search?.Length > 200) query.Search = query.Search[..200];
         if (query.Sort is not ("new" or "popular" or "title")) query.Sort = "new";
         var resources = db.Resources.AsNoTracking().VisibleTo(user, catalogOnly: true);
-        if (!string.IsNullOrEmpty(query.Search)) resources = resources.Where(r => r.Title.Contains(query.Search) || r.Description.Contains(query.Search) || r.ResourceTags.Any(t => t.Tag.Name.Contains(query.Search)));
         if (query.SubjectId.HasValue) resources = resources.Where(r => r.SubjectId == query.SubjectId);
         if (query.TopicId.HasValue) resources = resources.Where(r => r.TopicId == query.TopicId);
         if (query.TypeId.HasValue) resources = resources.Where(r => r.ResourceTypeId == query.TypeId);
+        if (query.TagId.HasValue) resources = resources.Where(r => r.ResourceTags.Any(t => t.TagId == query.TagId));
+        if (query.Difficulty is not ("Бастапқы" or "Орта" or "Жоғары")) query.Difficulty = null;
+        if (query.Difficulty is not null) resources = resources.Where(r => r.Analysis != null && r.Analysis.Status == AnalysisStatus.Completed && r.Analysis.AnalyzedFileHash == r.FileHash && r.Analysis.Difficulty == query.Difficulty);
+        var search = searchService ?? new CatalogSearchService(db, Options.Create(new SearchOptions()), Microsoft.Extensions.Logging.Abstractions.NullLogger<CatalogSearchService>.Instance);
+        var searched = await search.ApplyAsync(resources, query.Search, query.Sort, ct);
+        resources = searched.Query;
         var count = await resources.CountAsync(ct);
         var pages = (int)Math.Ceiling(count / (double)CatalogQuery.PageSize);
         query.Page = Math.Min(query.Page, Math.Max(1, pages));
-        resources = query.Sort switch
-        {
-            "popular" => resources.OrderByDescending(r => r.Views.Count).ThenByDescending(r => r.Id),
-            "title" => resources.OrderBy(r => r.Title).ThenBy(r => r.Id),
-            _ => resources.OrderByDescending(r => r.CreatedAtUtc).ThenByDescending(r => r.Id)
-        };
-        return new CatalogViewModel
+        var model = new CatalogViewModel
         {
             Query = query, TotalCount = count, PageCount = pages,
             Items = await CardListAsync(resources.Skip((query.Page - 1) * CatalogQuery.PageSize).Take(CatalogQuery.PageSize), user, ct),
             Subjects = await db.Subjects.AsNoTracking().OrderBy(x => x.Name).ToListAsync(ct),
             Topics = await db.Topics.AsNoTracking().OrderBy(x => x.Name).ToListAsync(ct),
-            ResourceTypes = await db.ResourceTypes.AsNoTracking().OrderBy(x => x.Name).ToListAsync(ct)
+            ResourceTypes = await db.ResourceTypes.AsNoTracking().OrderBy(x => x.Name).ToListAsync(ct),
+            Tags = await db.Tags.AsNoTracking().OrderBy(x => x.Name).ToListAsync(ct), SearchMode = searched.Mode
         };
+        if (!string.IsNullOrEmpty(query.Search) && model.Items.Count > 0)
+        {
+            var ids = model.Items.Select(i => i.Id).ToArray();
+            var snippets = await db.Resources.AsNoTracking().Where(r => ids.Contains(r.Id)).Select(r => new { r.Id, r.Description,
+                Text = r.TextExtraction != null && r.TextExtraction.ExtractedFileHash == r.FileHash ? r.ExtractedText : null,
+                Summary = r.Analysis != null && r.Analysis.Status == AnalysisStatus.Completed && r.Analysis.AnalyzedFileHash == r.FileHash ? r.Analysis.Summary : null }).ToListAsync(ct);
+            foreach (var item in model.Items)
+            {
+                var source = snippets.Single(s => s.Id == item.Id);
+                var match = new[] { source.Text, source.Summary, source.Description }.FirstOrDefault(s => s?.Contains(query.Search, StringComparison.OrdinalIgnoreCase) == true);
+                if (match is null) continue;
+                var index = match.IndexOf(query.Search, StringComparison.OrdinalIgnoreCase);
+                var start = Math.Max(0, index - 70); var length = Math.Min(220, match.Length - start);
+                item.Snippet = (start > 0 ? "…" : "") + match.Substring(start, length).Replace('\n', ' ') + (start + length < match.Length ? "…" : "");
+            }
+        }
+        return model;
     }
 
     public async Task FillOptionsAsync(ResourceEditViewModel model, CancellationToken ct = default)
@@ -91,6 +109,9 @@ public class ResourceService(ApplicationDbContext db, IFileStorage storage, IOpt
         var resource = new Resource { OwnerId = ResourceAccess.UserId(user)!, Analysis = new ResourceAnalysis() };
         ApplyMetadata(resource, model);
         ApplyFile(resource, stored);
+        resource.TextExtraction = new ResourceTextExtraction();
+        resource.ProcessingJob = new ProcessingJob { FileHash = resource.FileHash };
+        resource.SearchDocument = new ResourceSearchDocument { SearchText = await SearchTextAsync(resource, model.TagIds, ct) };
         db.Resources.Add(resource);
         try { await db.SaveChangesAsync(ct); }
         catch { TryDelete(stored.StoredFileName); throw; }
@@ -120,6 +141,9 @@ public class ResourceService(ApplicationDbContext db, IFileStorage storage, IOpt
             resource.ResourceTags = updatedTags;
             if (replacement is not null)
             {
+                var repeatAnalysis = resource.Analysis?.Status is AnalysisStatus.Completed or AnalysisStatus.Pending or AnalysisStatus.Processing ||
+                    await db.ProcessingJobs.AnyAsync(j => j.ResourceId == resource.Id && j.AnalyzeRequested, ct) ||
+                    await db.ResourceEmbeddings.AnyAsync(e => e.ResourceId == resource.Id, ct);
                 ApplyFile(resource, replacement);
                 resource.ExtractedText = null;
                 resource.Analysis ??= new ResourceAnalysis();
@@ -129,7 +153,26 @@ public class ResourceService(ApplicationDbContext db, IFileStorage storage, IOpt
                 resource.Analysis.Provider = null; resource.Analysis.Model = null;
                 resource.Analysis.AnalyzedAtUtc = null; resource.Analysis.AnalyzedFileHash = null;
                 resource.Analysis.ErrorCode = null;
+                resource.Analysis.ErrorMessage = null; resource.Analysis.SuggestedSubjectId = null; resource.Analysis.SuggestedTopicId = null;
+                resource.Analysis.AnalyzedCharacters = 0; resource.Analysis.SourceCharacters = 0;
+                resource.Analysis.ProcessedPages = 0; resource.Analysis.TotalPages = 0; resource.Analysis.IsPartial = false;
+                var extraction = await db.ResourceTextExtractions.Include(e => e.Pages).SingleOrDefaultAsync(e => e.ResourceId == resource.Id, ct);
+                if (extraction is null) { extraction = new ResourceTextExtraction { ResourceId = resource.Id }; db.ResourceTextExtractions.Add(extraction); }
+                db.ResourceTextPages.RemoveRange(extraction.Pages);
+                extraction.Status = ExtractionStatus.Pending; extraction.ExtractedFileHash = null; extraction.ExtractedAtUtc = null;
+                extraction.TotalPages = 0; extraction.ProcessedPages = 0; extraction.CharacterCount = 0; extraction.IsTruncated = false;
+                extraction.ErrorCode = null; extraction.ErrorMessage = null;
+                var embedding = await db.ResourceEmbeddings.FindAsync([resource.Id], ct);
+                if (embedding is not null) db.ResourceEmbeddings.Remove(embedding);
+                var job = await db.ProcessingJobs.FindAsync([resource.Id], ct);
+                if (job is null) { job = new ProcessingJob { ResourceId = resource.Id }; db.ProcessingJobs.Add(job); }
+                job.FileHash = resource.FileHash; job.Status = JobStatus.Pending; job.AnalyzeRequested = repeatAnalysis;
+                job.Attempts = 0; job.LeaseToken = null; job.LeaseExpiresAtUtc = null;
+                job.NotBeforeUtc = DateTime.UtcNow; job.UpdatedAtUtc = DateTime.UtcNow; job.LastErrorCode = null;
             }
+            var document = await db.ResourceSearchDocuments.FindAsync([resource.Id], ct);
+            if (document is null) { document = new ResourceSearchDocument { ResourceId = resource.Id }; db.ResourceSearchDocuments.Add(document); }
+            document.SearchText = await SearchTextAsync(resource, model.TagIds, ct); document.UpdatedAtUtc = DateTime.UtcNow;
             resource.UpdatedAtUtc = DateTime.UtcNow;
             await db.SaveChangesAsync(ct);
         }
@@ -149,6 +192,15 @@ public class ResourceService(ApplicationDbContext db, IFileStorage storage, IOpt
         resource.StoredFileName = file.StoredFileName; resource.OriginalFileName = file.OriginalFileName;
         resource.FileSize = file.FileSize; resource.ContentType = file.ContentType;
         resource.Extension = file.Extension; resource.FileHash = file.FileHash;
+    }
+    private async Task<string> SearchTextAsync(Resource resource, List<int> tagIds, CancellationToken ct)
+    {
+        var names = await db.Tags.Where(t => tagIds.Contains(t.Id)).Select(t => t.Name).ToListAsync(ct);
+        var text = resource.Title + "\n" + resource.Description + "\n" + string.Join("\n", names);
+        if (resource.ExtractedText is not null && await db.ResourceTextExtractions.AnyAsync(e => e.ResourceId == resource.Id && e.ExtractedFileHash == resource.FileHash, ct)) text += "\n" + resource.ExtractedText;
+        if (resource.Analysis?.Status == AnalysisStatus.Completed && resource.Analysis.AnalyzedFileHash == resource.FileHash)
+            text += "\n" + resource.Analysis.Summary + "\n" + resource.Analysis.Keywords;
+        return text;
     }
     private void TryDelete(string name)
     {

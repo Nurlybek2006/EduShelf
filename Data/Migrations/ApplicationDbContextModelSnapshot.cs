@@ -110,6 +110,82 @@ namespace EduShelf.Data.Migrations
                     b.ToTable("Favorites");
                 });
 
+            modelBuilder.Entity("EduShelf.Models.PageBookmark", b =>
+                {
+                    b.Property<string>("UserId")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<int>("ResourceId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("FileHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<int>("PageNumber")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("UserId", "ResourceId");
+
+                    b.HasIndex("ResourceId");
+
+                    b.ToTable("PageBookmarks", t =>
+                        {
+                            t.HasCheckConstraint("CK_PageBookmarks_PageNumber", "[PageNumber] > 0");
+                        });
+                });
+
+            modelBuilder.Entity("EduShelf.Models.ProcessingJob", b =>
+                {
+                    b.Property<int>("ResourceId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("AnalyzeRequested")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("Attempts")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("FileHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("LastErrorCode")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime?>("LeaseExpiresAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("LeaseToken")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("NotBeforeUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("ResourceId");
+
+                    b.HasIndex("Status", "NotBeforeUtc");
+
+                    b.ToTable("ProcessingJobs");
+                });
+
             modelBuilder.Entity("EduShelf.Models.Resource", b =>
                 {
                     b.Property<int>("Id")
@@ -229,6 +305,9 @@ namespace EduShelf.Data.Migrations
                     b.Property<DateTime?>("AnalyzedAtUtc")
                         .HasColumnType("datetime2");
 
+                    b.Property<int>("AnalyzedCharacters")
+                        .HasColumnType("int");
+
                     b.Property<string>("AnalyzedFileHash")
                         .HasMaxLength(64)
                         .HasColumnType("nvarchar(64)");
@@ -245,6 +324,13 @@ namespace EduShelf.Data.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<string>("ErrorMessage")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<bool>("IsPartial")
+                        .HasColumnType("bit");
+
                     b.Property<string>("Keywords")
                         .HasMaxLength(2000)
                         .HasColumnType("nvarchar(2000)");
@@ -253,20 +339,39 @@ namespace EduShelf.Data.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<int>("ProcessedPages")
+                        .HasColumnType("int");
+
                     b.Property<string>("Provider")
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("SourceCharacters")
+                        .HasColumnType("int");
 
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
 
+                    b.Property<int?>("SuggestedSubjectId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("SuggestedTopicId")
+                        .HasColumnType("int");
+
                     b.Property<string>("Summary")
                         .HasMaxLength(4000)
                         .HasColumnType("nvarchar(4000)");
 
+                    b.Property<int>("TotalPages")
+                        .HasColumnType("int");
+
                     b.HasKey("ResourceId");
+
+                    b.HasIndex("SuggestedSubjectId");
+
+                    b.HasIndex("SuggestedTopicId");
 
                     b.ToTable("ResourceAnalyses");
                 });
@@ -297,6 +402,67 @@ namespace EduShelf.Data.Migrations
                     b.ToTable("ResourceDownloads");
                 });
 
+            modelBuilder.Entity("EduShelf.Models.ResourceEmbedding", b =>
+                {
+                    b.Property<int>("ResourceId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("CoveredCharacters")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("Dimensions")
+                        .HasColumnType("int");
+
+                    b.Property<string>("FileHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<bool>("IsPartial")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Model")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("VectorJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("ResourceId");
+
+                    b.HasIndex("Model", "Dimensions");
+
+                    b.ToTable("ResourceEmbeddings");
+                });
+
+            modelBuilder.Entity("EduShelf.Models.ResourceSearchDocument", b =>
+                {
+                    b.Property<int>("ResourceId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("SearchText")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("ResourceId")
+                        .HasName("PK_ResourceSearchDocuments");
+
+                    b.ToTable("ResourceSearchDocuments");
+                });
+
             modelBuilder.Entity("EduShelf.Models.ResourceTag", b =>
                 {
                     b.Property<int>("ResourceId")
@@ -310,6 +476,65 @@ namespace EduShelf.Data.Migrations
                     b.HasIndex("TagId");
 
                     b.ToTable("ResourceTags");
+                });
+
+            modelBuilder.Entity("EduShelf.Models.ResourceTextExtraction", b =>
+                {
+                    b.Property<int>("ResourceId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("CharacterCount")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ErrorCode")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime?>("ExtractedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ExtractedFileHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<bool>("IsTruncated")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("ProcessedPages")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<int>("TotalPages")
+                        .HasColumnType("int");
+
+                    b.HasKey("ResourceId");
+
+                    b.ToTable("ResourceTextExtractions");
+                });
+
+            modelBuilder.Entity("EduShelf.Models.ResourceTextPage", b =>
+                {
+                    b.Property<int>("ResourceId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("PageNumber")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("ResourceId", "PageNumber");
+
+                    b.ToTable("ResourceTextPages");
                 });
 
             modelBuilder.Entity("EduShelf.Models.ResourceType", b =>
@@ -581,6 +806,36 @@ namespace EduShelf.Data.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("EduShelf.Models.PageBookmark", b =>
+                {
+                    b.HasOne("EduShelf.Models.Resource", "Resource")
+                        .WithMany()
+                        .HasForeignKey("ResourceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("EduShelf.Models.ApplicationUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Resource");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("EduShelf.Models.ProcessingJob", b =>
+                {
+                    b.HasOne("EduShelf.Models.Resource", "Resource")
+                        .WithOne("ProcessingJob")
+                        .HasForeignKey("EduShelf.Models.ProcessingJob", "ResourceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Resource");
+                });
+
             modelBuilder.Entity("EduShelf.Models.Resource", b =>
                 {
                     b.HasOne("EduShelf.Models.ApplicationUser", "Owner")
@@ -624,7 +879,21 @@ namespace EduShelf.Data.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("EduShelf.Models.Subject", "SuggestedSubject")
+                        .WithMany()
+                        .HasForeignKey("SuggestedSubjectId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("EduShelf.Models.Topic", "SuggestedTopic")
+                        .WithMany()
+                        .HasForeignKey("SuggestedTopicId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.Navigation("Resource");
+
+                    b.Navigation("SuggestedSubject");
+
+                    b.Navigation("SuggestedTopic");
                 });
 
             modelBuilder.Entity("EduShelf.Models.ResourceDownload", b =>
@@ -645,6 +914,28 @@ namespace EduShelf.Data.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("EduShelf.Models.ResourceEmbedding", b =>
+                {
+                    b.HasOne("EduShelf.Models.Resource", "Resource")
+                        .WithOne("Embedding")
+                        .HasForeignKey("EduShelf.Models.ResourceEmbedding", "ResourceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Resource");
+                });
+
+            modelBuilder.Entity("EduShelf.Models.ResourceSearchDocument", b =>
+                {
+                    b.HasOne("EduShelf.Models.Resource", "Resource")
+                        .WithOne("SearchDocument")
+                        .HasForeignKey("EduShelf.Models.ResourceSearchDocument", "ResourceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Resource");
+                });
+
             modelBuilder.Entity("EduShelf.Models.ResourceTag", b =>
                 {
                     b.HasOne("EduShelf.Models.Resource", "Resource")
@@ -662,6 +953,28 @@ namespace EduShelf.Data.Migrations
                     b.Navigation("Resource");
 
                     b.Navigation("Tag");
+                });
+
+            modelBuilder.Entity("EduShelf.Models.ResourceTextExtraction", b =>
+                {
+                    b.HasOne("EduShelf.Models.Resource", "Resource")
+                        .WithOne("TextExtraction")
+                        .HasForeignKey("EduShelf.Models.ResourceTextExtraction", "ResourceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Resource");
+                });
+
+            modelBuilder.Entity("EduShelf.Models.ResourceTextPage", b =>
+                {
+                    b.HasOne("EduShelf.Models.ResourceTextExtraction", "Extraction")
+                        .WithMany("Pages")
+                        .HasForeignKey("ResourceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Extraction");
                 });
 
             modelBuilder.Entity("EduShelf.Models.ResourceView", b =>
@@ -750,9 +1063,22 @@ namespace EduShelf.Data.Migrations
 
                     b.Navigation("Downloads");
 
+                    b.Navigation("Embedding");
+
+                    b.Navigation("ProcessingJob");
+
                     b.Navigation("ResourceTags");
 
+                    b.Navigation("SearchDocument");
+
+                    b.Navigation("TextExtraction");
+
                     b.Navigation("Views");
+                });
+
+            modelBuilder.Entity("EduShelf.Models.ResourceTextExtraction", b =>
+                {
+                    b.Navigation("Pages");
                 });
 
             modelBuilder.Entity("EduShelf.Models.Subject", b =>

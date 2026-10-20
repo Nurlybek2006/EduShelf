@@ -41,6 +41,7 @@ public sealed class HttpWorkflowTests : IAsyncLifetime
         {
             ["ConnectionStrings:DefaultConnection"] = connection,
             ["Storage:RootPath"] = temporaryRoot,
+            ["Worker:Enabled"] = "false",
             ["Seed:DemoEnabled"] = "true",
             ["Seed:AdminEmail"] = AdminEmail, ["Seed:AdminPassword"] = password,
             ["Seed:TeacherEmail"] = TeacherEmail, ["Seed:TeacherPassword"] = password,

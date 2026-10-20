@@ -6,10 +6,12 @@ using EduShelf.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using EduShelf.Services.Processing;
+using Microsoft.Extensions.Options;
 
 namespace EduShelf.Controllers;
 
-public class ResourcesController(ApplicationDbContext db, ResourceService service, IFileStorage storage, ILogger<ResourcesController> logger) : Controller
+public class ResourcesController(ApplicationDbContext db, ResourceService service, IFileStorage storage, ILogger<ResourcesController> logger, RelatedResourcesService related, IOptions<AiOptions> ai) : Controller
 {
     [HttpGet]
     public async Task<IActionResult> Index([FromQuery] CatalogQuery query, CancellationToken ct) => View(await service.CatalogAsync(query, User, ct));
@@ -18,7 +20,8 @@ public class ResourcesController(ApplicationDbContext db, ResourceService servic
     public async Task<IActionResult> Details(int id, CancellationToken ct)
     {
         var resource = await db.Resources.AsNoTracking().Include(r => r.Subject).Include(r => r.Topic).Include(r => r.ResourceType)
-            .Include(r => r.Owner).Include(r => r.ResourceTags).ThenInclude(rt => rt.Tag).Include(r => r.Analysis)
+            .Include(r => r.Owner).Include(r => r.ResourceTags).ThenInclude(rt => rt.Tag).Include(r => r.TextExtraction).Include(r => r.ProcessingJob)
+            .Include(r => r.Analysis).ThenInclude(a => a!.SuggestedSubject).Include(r => r.Analysis).ThenInclude(a => a!.SuggestedTopic)
             .VisibleTo(User).SingleOrDefaultAsync(r => r.Id == id, ct);
         if (resource is null) return NotFound();
         var userId = ResourceAccess.UserId(User);
@@ -30,8 +33,23 @@ public class ResourcesController(ApplicationDbContext db, ResourceService servic
             Resource = resource, CanEdit = ResourceAccess.CanManage(User, resource), FileExists = storage.Exists(resource.StoredFileName),
             IsFavorite = userId is not null && await db.Favorites.AnyAsync(f => f.UserId == userId && f.ResourceId == id, ct),
             ViewCount = await db.ResourceViews.CountAsync(v => v.ResourceId == id, ct),
-            DownloadCount = await db.ResourceDownloads.CountAsync(v => v.ResourceId == id, ct)
+            DownloadCount = await db.ResourceDownloads.CountAsync(v => v.ResourceId == id, ct),
+            Processing = ProcessingPanelViewModel.From(resource, ai.Value.IsConfigured),
+            Recommendations = await related.GetAsync(id, User, ct),
+            BookmarkPage = userId is null ? null : await db.PageBookmarks.AsNoTracking().Where(b => b.UserId == userId && b.ResourceId == id && b.FileHash == resource.FileHash).Select(b => (int?)b.PageNumber).SingleOrDefaultAsync(ct)
         });
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> Related(int id, CancellationToken ct)
+    {
+        try
+        {
+            var result = await related.GetAsync(id, User, ct);
+            Response.Headers.CacheControl = "private, no-store";
+            return Json(new { result.Heading, result.IsSemantic, result.Items });
+        }
+        catch (KeyNotFoundException) { return NotFound(); }
     }
 
     [HttpGet]
@@ -51,8 +69,11 @@ public class ResourcesController(ApplicationDbContext db, ResourceService servic
         var resource = await db.Resources.AsNoTracking().VisibleTo(User).SingleOrDefaultAsync(r => r.Id == id, ct);
         if (resource is null) return NotFound();
         if (!storage.Exists(resource.StoredFileName)) return MissingFile();
-        db.ResourceDownloads.Add(new ResourceDownload { ResourceId = id, UserId = ResourceAccess.UserId(User) });
-        await db.SaveChangesAsync(ct);
+        if (!Request.Headers.ContainsKey("Range"))
+        {
+            db.ResourceDownloads.Add(new ResourceDownload { ResourceId = id, UserId = ResourceAccess.UserId(User) });
+            await db.SaveChangesAsync(ct);
+        }
         SetFileHeaders();
         return PhysicalFile(storage.GetPhysicalPath(resource.StoredFileName), "application/pdf", resource.OriginalFileName, enableRangeProcessing: false);
     }

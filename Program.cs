@@ -8,7 +8,9 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using EduShelf.Services.Processing;
 
+if (PdfExtractionProcess.TryRun(args)) return;
 var builder = WebApplication.CreateBuilder(args);
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
@@ -48,6 +50,15 @@ builder.Services.AddScoped<IFileStorage, LocalFileStorage>();
 builder.Services.AddScoped<ResourceService>();
 builder.Services.AddScoped<LibraryService>();
 builder.Services.AddScoped<UserAdministrationService>();
+builder.Services.AddSingleton<TimeProvider>(TimeProvider.System);
+builder.Services.AddScoped<AnalyticsService>();
+builder.Services.AddScoped<IResourceSearchIndexer, ResourceSearchIndexer>();
+builder.Services.Configure<SearchOptions>(builder.Configuration.GetSection("Search"));
+builder.Services.AddOptions<RecommendationOptions>().BindConfiguration("Recommendations").ValidateDataAnnotations().ValidateOnStart();
+builder.Services.AddScoped<CatalogSearchService>();
+builder.Services.AddScoped<RelatedResourcesService>();
+builder.Services.AddScoped<IRelatedResourcesService>(provider => provider.GetRequiredService<RelatedResourcesService>());
+builder.Services.AddResourceProcessing(builder.Configuration);
 builder.Services.AddSingleton(HtmlEncoder.Create(UnicodeRanges.BasicLatin, UnicodeRanges.Cyrillic, UnicodeRanges.GeneralPunctuation));
 builder.Services.AddControllersWithViews(options =>
 {
@@ -59,7 +70,7 @@ builder.Services.AddControllersWithViews(options =>
 });
 
 var app = builder.Build();
-if (args.Any(a => a is "--migrate" or "--seed" or "--check-db"))
+if (args.Any(a => a is "--migrate" or "--seed" or "--check-db" or "--index-existing" or "--process-pending"))
 {
     await using var scope = app.Services.CreateAsyncScope();
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
@@ -73,6 +84,32 @@ if (args.Any(a => a is "--migrate" or "--seed" or "--check-db"))
             await db.Database.CloseConnectionAsync();
         }
         if (args.Contains("--seed")) { await DemoSeeder.SeedAsync(scope.ServiceProvider, app.Environment, app.Configuration); Console.WriteLine("Seed completed."); }
+        if (args.Contains("--index-existing") || args.Contains("--seed"))
+        {
+            var indexer = scope.ServiceProvider.GetRequiredService<IResourceSearchIndexer>();
+            var queue = scope.ServiceProvider.GetRequiredService<IProcessingQueue>();
+            var afterId = 0;
+            while (true)
+            {
+                var batch = await db.Resources.AsNoTracking().Where(r => r.Id > afterId).OrderBy(r => r.Id)
+                    .Select(r => new { r.Id, NeedsText = r.TextExtraction == null || r.TextExtraction.ExtractedFileHash != r.FileHash }).Take(100).ToListAsync();
+                if (batch.Count == 0) break;
+                foreach (var item in batch) { await indexer.UpdateAsync(item.Id); if (item.NeedsText) await queue.EnqueueAsync(item.Id, false); }
+                afterId = batch[^1].Id;
+            }
+            Console.WriteLine("Search documents refreshed; missing PDF text queued.");
+        }
+        if (args.Contains("--process-pending"))
+        {
+            var count = 0;
+            while (count < 1000)
+            {
+                await using var jobScope = app.Services.CreateAsyncScope();
+                if (!await jobScope.ServiceProvider.GetRequiredService<ResourceProcessor>().ProcessNextAsync(CancellationToken.None)) break;
+                count++;
+            }
+            Console.WriteLine($"Processed {count} queued jobs.");
+        }
     }
     catch (Exception ex)
     {

@@ -2,7 +2,7 @@ using EduShelf.Models;
 
 namespace EduShelf.Services;
 
-// Phase two extension points. No provider is registered or invoked in phase one.
+// Implementations perform bounded extraction, durable analysis scheduling and cached recommendations.
 public interface IResourceTextExtractor
 {
     Task<string?> ExtractAsync(Stream pdf, CancellationToken cancellationToken = default);

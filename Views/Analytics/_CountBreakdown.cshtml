@@ -1,0 +1,14 @@
+@model List<AnalyticsCountRow>
+@{ var maximum = Math.Max(1, Model.Select(r => r.Count).DefaultIfEmpty(1).Max()); }
+@if (Model.Count == 0)
+{
+    <p class="analytics-empty">Әзірге есепке кіретін дерек жоқ.</p>
+}
+else
+{
+    <div class="table-wrap" tabindex="0" aria-label="Сандық үлестірім кестесі">
+        <table class="data-table analytics-breakdown"><thead><tr><th scope="col">Атауы</th><th scope="col">Саны</th><th scope="col">Диаграмма</th></tr></thead>
+            <tbody>@foreach (var item in Model) { <tr><th scope="row">@item.Name</th><td>@item.Count</td><td><progress value="@item.Count" max="@maximum" aria-label="@($"{item.Name}: {item.Count}")">@item.Count</progress></td></tr> }</tbody>
+        </table>
+    </div>
+}

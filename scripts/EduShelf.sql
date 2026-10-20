@@ -498,3 +498,262 @@ END;
 COMMIT;
 GO
 
+BEGIN TRANSACTION;
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261020110540_PhaseTwoProcessingSearch'
+)
+BEGIN
+    ALTER TABLE [ResourceAnalyses] ADD [AnalyzedCharacters] int NOT NULL DEFAULT 0;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261020110540_PhaseTwoProcessingSearch'
+)
+BEGIN
+    ALTER TABLE [ResourceAnalyses] ADD [ErrorMessage] nvarchar(500) NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261020110540_PhaseTwoProcessingSearch'
+)
+BEGIN
+    ALTER TABLE [ResourceAnalyses] ADD [IsPartial] bit NOT NULL DEFAULT CAST(0 AS bit);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261020110540_PhaseTwoProcessingSearch'
+)
+BEGIN
+    ALTER TABLE [ResourceAnalyses] ADD [ProcessedPages] int NOT NULL DEFAULT 0;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261020110540_PhaseTwoProcessingSearch'
+)
+BEGIN
+    ALTER TABLE [ResourceAnalyses] ADD [SourceCharacters] int NOT NULL DEFAULT 0;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261020110540_PhaseTwoProcessingSearch'
+)
+BEGIN
+    ALTER TABLE [ResourceAnalyses] ADD [SuggestedSubjectId] int NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261020110540_PhaseTwoProcessingSearch'
+)
+BEGIN
+    ALTER TABLE [ResourceAnalyses] ADD [SuggestedTopicId] int NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261020110540_PhaseTwoProcessingSearch'
+)
+BEGIN
+    ALTER TABLE [ResourceAnalyses] ADD [TotalPages] int NOT NULL DEFAULT 0;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261020110540_PhaseTwoProcessingSearch'
+)
+BEGIN
+    CREATE TABLE [PageBookmarks] (
+        [UserId] nvarchar(450) NOT NULL,
+        [ResourceId] int NOT NULL,
+        [PageNumber] int NOT NULL,
+        [FileHash] nvarchar(64) NOT NULL,
+        [UpdatedAtUtc] datetime2 NOT NULL,
+        CONSTRAINT [PK_PageBookmarks] PRIMARY KEY ([UserId], [ResourceId]),
+        CONSTRAINT [CK_PageBookmarks_PageNumber] CHECK ([PageNumber] > 0),
+        CONSTRAINT [FK_PageBookmarks_AspNetUsers_UserId] FOREIGN KEY ([UserId]) REFERENCES [AspNetUsers] ([Id]) ON DELETE NO ACTION,
+        CONSTRAINT [FK_PageBookmarks_Resources_ResourceId] FOREIGN KEY ([ResourceId]) REFERENCES [Resources] ([Id]) ON DELETE NO ACTION
+    );
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261020110540_PhaseTwoProcessingSearch'
+)
+BEGIN
+    CREATE TABLE [ProcessingJobs] (
+        [ResourceId] int NOT NULL,
+        [FileHash] nvarchar(64) NOT NULL,
+        [AnalyzeRequested] bit NOT NULL,
+        [Status] nvarchar(20) NOT NULL,
+        [Attempts] int NOT NULL,
+        [LeaseToken] uniqueidentifier NULL,
+        [LeaseExpiresAtUtc] datetime2 NULL,
+        [NotBeforeUtc] datetime2 NOT NULL,
+        [CreatedAtUtc] datetime2 NOT NULL,
+        [UpdatedAtUtc] datetime2 NOT NULL,
+        [LastErrorCode] nvarchar(100) NULL,
+        CONSTRAINT [PK_ProcessingJobs] PRIMARY KEY ([ResourceId]),
+        CONSTRAINT [FK_ProcessingJobs_Resources_ResourceId] FOREIGN KEY ([ResourceId]) REFERENCES [Resources] ([Id]) ON DELETE CASCADE
+    );
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261020110540_PhaseTwoProcessingSearch'
+)
+BEGIN
+    CREATE TABLE [ResourceEmbeddings] (
+        [ResourceId] int NOT NULL,
+        [Provider] nvarchar(100) NOT NULL,
+        [Model] nvarchar(100) NOT NULL,
+        [Dimensions] int NOT NULL,
+        [FileHash] nvarchar(64) NOT NULL,
+        [VectorJson] nvarchar(max) NOT NULL,
+        [CreatedAtUtc] datetime2 NOT NULL,
+        [CoveredCharacters] int NOT NULL,
+        [IsPartial] bit NOT NULL,
+        CONSTRAINT [PK_ResourceEmbeddings] PRIMARY KEY ([ResourceId]),
+        CONSTRAINT [FK_ResourceEmbeddings_Resources_ResourceId] FOREIGN KEY ([ResourceId]) REFERENCES [Resources] ([Id]) ON DELETE CASCADE
+    );
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261020110540_PhaseTwoProcessingSearch'
+)
+BEGIN
+    CREATE TABLE [ResourceSearchDocuments] (
+        [ResourceId] int NOT NULL,
+        [SearchText] nvarchar(max) NOT NULL,
+        [UpdatedAtUtc] datetime2 NOT NULL,
+        CONSTRAINT [PK_ResourceSearchDocuments] PRIMARY KEY ([ResourceId]),
+        CONSTRAINT [FK_ResourceSearchDocuments_Resources_ResourceId] FOREIGN KEY ([ResourceId]) REFERENCES [Resources] ([Id]) ON DELETE CASCADE
+    );
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261020110540_PhaseTwoProcessingSearch'
+)
+BEGIN
+    CREATE TABLE [ResourceTextExtractions] (
+        [ResourceId] int NOT NULL,
+        [Status] nvarchar(20) NOT NULL,
+        [ExtractedFileHash] nvarchar(64) NULL,
+        [TotalPages] int NOT NULL,
+        [ProcessedPages] int NOT NULL,
+        [CharacterCount] int NOT NULL,
+        [IsTruncated] bit NOT NULL,
+        [ErrorCode] nvarchar(100) NULL,
+        [ErrorMessage] nvarchar(500) NULL,
+        [ExtractedAtUtc] datetime2 NULL,
+        CONSTRAINT [PK_ResourceTextExtractions] PRIMARY KEY ([ResourceId]),
+        CONSTRAINT [FK_ResourceTextExtractions_Resources_ResourceId] FOREIGN KEY ([ResourceId]) REFERENCES [Resources] ([Id]) ON DELETE CASCADE
+    );
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261020110540_PhaseTwoProcessingSearch'
+)
+BEGIN
+    CREATE TABLE [ResourceTextPages] (
+        [ResourceId] int NOT NULL,
+        [PageNumber] int NOT NULL,
+        [Text] nvarchar(max) NOT NULL,
+        CONSTRAINT [PK_ResourceTextPages] PRIMARY KEY ([ResourceId], [PageNumber]),
+        CONSTRAINT [FK_ResourceTextPages_ResourceTextExtractions_ResourceId] FOREIGN KEY ([ResourceId]) REFERENCES [ResourceTextExtractions] ([ResourceId]) ON DELETE CASCADE
+    );
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261020110540_PhaseTwoProcessingSearch'
+)
+BEGIN
+    CREATE INDEX [IX_ResourceAnalyses_SuggestedSubjectId] ON [ResourceAnalyses] ([SuggestedSubjectId]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261020110540_PhaseTwoProcessingSearch'
+)
+BEGIN
+    CREATE INDEX [IX_ResourceAnalyses_SuggestedTopicId] ON [ResourceAnalyses] ([SuggestedTopicId]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261020110540_PhaseTwoProcessingSearch'
+)
+BEGIN
+    CREATE INDEX [IX_PageBookmarks_ResourceId] ON [PageBookmarks] ([ResourceId]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261020110540_PhaseTwoProcessingSearch'
+)
+BEGIN
+    CREATE INDEX [IX_ProcessingJobs_Status_NotBeforeUtc] ON [ProcessingJobs] ([Status], [NotBeforeUtc]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261020110540_PhaseTwoProcessingSearch'
+)
+BEGIN
+    CREATE INDEX [IX_ResourceEmbeddings_Model_Dimensions] ON [ResourceEmbeddings] ([Model], [Dimensions]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261020110540_PhaseTwoProcessingSearch'
+)
+BEGIN
+    ALTER TABLE [ResourceAnalyses] ADD CONSTRAINT [FK_ResourceAnalyses_Subjects_SuggestedSubjectId] FOREIGN KEY ([SuggestedSubjectId]) REFERENCES [Subjects] ([Id]) ON DELETE SET NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261020110540_PhaseTwoProcessingSearch'
+)
+BEGIN
+    ALTER TABLE [ResourceAnalyses] ADD CONSTRAINT [FK_ResourceAnalyses_Topics_SuggestedTopicId] FOREIGN KEY ([SuggestedTopicId]) REFERENCES [Topics] ([Id]) ON DELETE SET NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261020110540_PhaseTwoProcessingSearch'
+)
+BEGIN
+    INSERT INTO [ResourceSearchDocuments] ([ResourceId],[SearchText],[UpdatedAtUtc])
+    SELECT r.[Id], CONCAT(r.[Title],NCHAR(10),r.[Description],NCHAR(10),
+        (SELECT STRING_AGG(CONVERT(nvarchar(max),t.[Name]),NCHAR(10)) FROM [ResourceTags] rt JOIN [Tags] t ON rt.[TagId]=t.[Id] WHERE rt.[ResourceId]=r.[Id])), SYSUTCDATETIME()
+    FROM [Resources] r WHERE NOT EXISTS (SELECT 1 FROM [ResourceSearchDocuments] s WHERE s.[ResourceId]=r.[Id]);
+    INSERT INTO [ResourceTextExtractions] ([ResourceId],[Status],[TotalPages],[ProcessedPages],[CharacterCount],[IsTruncated])
+    SELECT r.[Id],N'Pending',0,0,0,0 FROM [Resources] r
+    WHERE NOT EXISTS (SELECT 1 FROM [ResourceTextExtractions] e WHERE e.[ResourceId]=r.[Id]);
+    INSERT INTO [ProcessingJobs] ([ResourceId],[FileHash],[AnalyzeRequested],[Status],[Attempts],[NotBeforeUtc],[CreatedAtUtc],[UpdatedAtUtc])
+    SELECT r.[Id],r.[FileHash],0,N'Pending',0,SYSUTCDATETIME(),SYSUTCDATETIME(),SYSUTCDATETIME()
+    FROM [Resources] r WHERE NOT EXISTS (SELECT 1 FROM [ProcessingJobs] j WHERE j.[ResourceId]=r.[Id]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261020110540_PhaseTwoProcessingSearch'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20261020110540_PhaseTwoProcessingSearch', N'10.0.13');
+END;
+
+COMMIT;
+GO
+

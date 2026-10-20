@@ -11,6 +11,8 @@
         <div class="resource-meta"><span class="subject-label">@Model.SubjectName</span><span class="resource-type">@Model.TypeName</span></div>
         <h3><a asp-controller="Resources" asp-action="Details" asp-route-id="@Model.Id">@Model.Title</a></h3>
         <p class="resource-description">@Model.Description</p>
+        @if (!string.IsNullOrWhiteSpace(Model.Difficulty)) { <div class="resource-difficulty"><span class="badge badge-muted difficulty-label">@Model.Difficulty</span></div> }
+        @if (!string.IsNullOrWhiteSpace(Model.Snippet)) { <p class="resource-snippet"><strong>Табылған үзінді</strong>@Model.Snippet</p> }
         <div class="resource-owner"><span class="mini-avatar">@(string.IsNullOrWhiteSpace(Model.OwnerName) ? "E" : Model.OwnerName[..1])</span>@Model.OwnerName</div>
         <div class="resource-footer"><span title="Қаралым"><svg class="icon"><use href="#i-eye" /></svg>@Model.ViewCount</span><span title="Жүктеу"><svg class="icon"><use href="#i-download" /></svg>@Model.DownloadCount</span>
             @if (Model.Status != ResourceStatus.Published) { <span class="badge badge-muted">@(Model.Status == ResourceStatus.Draft ? "Жоба" : "Архив")</span> }

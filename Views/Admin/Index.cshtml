@@ -1,0 +1,10 @@
+@{ ViewData["Title"] = "Басқару"; }
+<div class="page-heading"><div><span class="eyebrow">ӘКІМШІ КЕҢІСТІГІ</span><h1>Жүйені басқару</h1><p>Оқу кітапханасының құрылымын және қолданушылар құқықтарын реттеңіз.</p></div></div>
+<div class="form-grid">
+    <a class="panel admin-link" asp-action="Users"><svg class="icon" aria-hidden="true"><use href="#i-users" /></svg><h2>Қолданушылар</h2><p class="text-muted">Білім алушы, оқытушы және әкімші рөлдерін басқару.</p></a>
+    <a class="panel admin-link" asp-controller="Library" asp-action="Mine"><svg class="icon" aria-hidden="true"><use href="#i-folder" /></svg><h2>Материалдар</h2><p class="text-muted">Барлық авторлардың материалдарын өңдеу және жариялау.</p></a>
+    <a class="panel admin-link" asp-action="Lookups" asp-route-kind="subjects"><svg class="icon" aria-hidden="true"><use href="#i-book" /></svg><h2>Пәндер</h2><p class="text-muted">Каталогтағы негізгі оқу бағыттарын реттеу.</p></a>
+    <a class="panel admin-link" asp-action="Lookups" asp-route-kind="topics"><svg class="icon" aria-hidden="true"><use href="#i-grid" /></svg><h2>Тақырыптар</h2><p class="text-muted">Әр пәннің тақырыптарын қосу және өңдеу.</p></a>
+    <a class="panel admin-link" asp-action="Lookups" asp-route-kind="types"><svg class="icon" aria-hidden="true"><use href="#i-file" /></svg><h2>Материал түрлері</h2><p class="text-muted">Оқу құралы, дәріс және басқа материал түрлері.</p></a>
+    <a class="panel admin-link" asp-action="Lookups" asp-route-kind="tags"><svg class="icon" aria-hidden="true"><use href="#i-filter" /></svg><h2>Тегтер</h2><p class="text-muted">Материалдарды табуға көмектесетін кілт сөздер.</p></a>
+</div>

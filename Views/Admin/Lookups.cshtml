@@ -1,0 +1,39 @@
+@model EduShelf.ViewModels.LookupListViewModel
+@{ ViewData["Title"] = Model.Title; }
+<div class="page-heading">
+    <div><span class="eyebrow">АНЫҚТАМАЛЫҚТАР</span><h1>@Model.Title</h1><p>Каталог құрылымын реттеп, іздеуді жеңілдетіңіз.</p></div>
+    <a asp-action="EditLookup" asp-route-kind="@Model.Kind" class="btn btn-primary"><svg class="icon" aria-hidden="true"><use href="#i-plus" /></svg> Жаңа жазба</a>
+</div>
+<nav class="tabs" aria-label="Анықтамалық бөлімдері">
+    <a class="tab @(Model.Kind == "subjects" ? "active" : "")" asp-action="Lookups" asp-route-kind="subjects">Пәндер</a>
+    <a class="tab @(Model.Kind == "topics" ? "active" : "")" asp-action="Lookups" asp-route-kind="topics">Тақырыптар</a>
+    <a class="tab @(Model.Kind == "types" ? "active" : "")" asp-action="Lookups" asp-route-kind="types">Түрлер</a>
+    <a class="tab @(Model.Kind == "tags" ? "active" : "")" asp-action="Lookups" asp-route-kind="tags">Тегтер</a>
+</nav>
+<section class="panel">
+    <div class="panel-header"><h2>Барлық жазбалар</h2><span class="badge badge-muted">@Model.Items.Count жазба</span></div>
+    @if (Model.Items.Count == 0)
+    {
+        <div class="empty-state"><h3>Әзірге жазба жоқ</h3><p>Алғашқы жазбаны қосу үшін жоғарыдағы батырманы басыңыз.</p></div>
+    }
+    else
+    {
+        <div class="table-wrap"><table class="data-table">
+            <thead><tr><th scope="col">Атауы</th>@if (Model.Kind == "topics") { <th scope="col">Пән</th> }<th scope="col">Әрекеттер</th></tr></thead>
+            <tbody>
+                @foreach (var row in Model.Items)
+                {
+                    <tr><td><strong>@row.Name</strong></td>@if (Model.Kind == "topics") { <td>@row.ParentName</td> }
+                        <td><div class="form-actions">
+                            <a asp-action="EditLookup" asp-route-kind="@Model.Kind" asp-route-id="@row.Id" class="btn btn-ghost" aria-label="@row.Name: өңдеу">Өңдеу</a>
+                            <form asp-action="DeleteLookup" method="post" data-confirm="Бұл жазбаны жою керек пе?">
+                                <input type="hidden" name="kind" value="@Model.Kind" /><input type="hidden" name="id" value="@row.Id" />
+                                <button type="submit" class="btn btn-danger" aria-label="@row.Name: жою">Жою</button>
+                            </form>
+                        </div></td>
+                    </tr>
+                }
+            </tbody>
+        </table></div>
+    }
+</section>

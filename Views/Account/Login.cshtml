@@ -1,0 +1,32 @@
+@model EduShelf.ViewModels.LoginViewModel
+@{ ViewData["Title"] = "Кіру"; }
+<section class="auth-shell">
+    <div class="auth-aside">
+        <span class="eyebrow">БІЛІМГЕ АПАРАР ЖОЛ</span>
+        <h1>Сіздің келесі жаңалығыңыз осында.</h1>
+        <p>Оқу материалдарын бір жерден табыңыз, таңдаулыға сақтаңыз және біліміңізді толықтырыңыз.</p>
+        <svg class="icon" aria-hidden="true"><use href="#i-book" /></svg>
+    </div>
+    <div class="auth-card">
+        <span class="eyebrow">EDUSHELF</span>
+        <h2>Қайта оралғаныңызға қуаныштымыз</h2>
+        <p class="text-muted">Оқуды жалғастыру үшін аккаунтыңызға кіріңіз.</p>
+        <form asp-action="Login" method="post" class="auth-form">
+            <input asp-for="ReturnUrl" type="hidden" />
+            <div asp-validation-summary="ModelOnly" class="validation-summary" role="alert"></div>
+            <div class="form-field">
+                <label asp-for="Email"></label>
+                <input asp-for="Email" autocomplete="username" maxlength="256" placeholder="name@example.kz" autofocus />
+                <span asp-validation-for="Email"></span>
+            </div>
+            <div class="form-field">
+                <label asp-for="Password"></label>
+                <input asp-for="Password" autocomplete="current-password" maxlength="100" />
+                <span asp-validation-for="Password"></span>
+            </div>
+            <label class="checkbox-field"><input asp-for="RememberMe" /> @Html.DisplayNameFor(m => m.RememberMe)</label>
+            <button class="btn btn-primary" type="submit">Аккаунтқа кіру <svg class="icon" aria-hidden="true"><use href="#i-arrow" /></svg></button>
+        </form>
+        <p class="text-muted">Аккаунтыңыз жоқ па? <a asp-action="Register" asp-route-returnUrl="@Model.ReturnUrl">Тіркелу</a></p>
+    </div>
+</section>

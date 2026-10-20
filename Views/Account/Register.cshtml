@@ -1,0 +1,42 @@
+@model EduShelf.ViewModels.RegisterViewModel
+@{ ViewData["Title"] = "Тіркелу"; }
+<section class="auth-shell">
+    <div class="auth-aside">
+        <span class="eyebrow">БІЛІМГЕ БІР ҚАДАМ</span>
+        <h1>Үйреніңіз. Ізденіңіз. Дамыңыз.</h1>
+        <p>Жеке оқу сөреңізді жасаңыз. Қажетті материалдарды сақтап, оқу тарихыңызды бақылаңыз.</p>
+        <svg class="icon" aria-hidden="true"><use href="#i-book" /></svg>
+    </div>
+    <div class="auth-card">
+        <span class="eyebrow">EDUSHELF ҚАУЫМДАСТЫҒЫ</span>
+        <h2>Оқуды бірге бастайық</h2>
+        <p class="text-muted">Тіркелгеннен кейін сізге білім алушы рөлі беріледі.</p>
+        <form asp-action="Register" method="post" class="auth-form">
+            <input asp-for="ReturnUrl" type="hidden" />
+            <div asp-validation-summary="ModelOnly" class="validation-summary" role="alert"></div>
+            <div class="form-field">
+                <label asp-for="FullName"></label>
+                <input asp-for="FullName" autocomplete="name" maxlength="120" placeholder="Атыңыз және тегіңіз" autofocus />
+                <span asp-validation-for="FullName"></span>
+            </div>
+            <div class="form-field">
+                <label asp-for="Email"></label>
+                <input asp-for="Email" autocomplete="username" maxlength="256" placeholder="name@example.kz" />
+                <span asp-validation-for="Email"></span>
+            </div>
+            <div class="form-field">
+                <label asp-for="Password"></label>
+                <input asp-for="Password" autocomplete="new-password" maxlength="100" aria-describedby="password-help" />
+                <span class="field-hint" id="password-help">Кемінде 8 таңба: бас және кіші латын әрпі, сан, арнайы таңба.</span>
+                <span asp-validation-for="Password"></span>
+            </div>
+            <div class="form-field">
+                <label asp-for="ConfirmPassword"></label>
+                <input asp-for="ConfirmPassword" autocomplete="new-password" maxlength="100" />
+                <span asp-validation-for="ConfirmPassword"></span>
+            </div>
+            <button class="btn btn-primary" type="submit">Аккаунт жасау <svg class="icon" aria-hidden="true"><use href="#i-arrow" /></svg></button>
+        </form>
+        <p class="text-muted">Аккаунтыңыз бар ма? <a asp-action="Login" asp-route-returnUrl="@Model.ReturnUrl">Кіру</a></p>
+    </div>
+</section>

@@ -1,0 +1,24 @@
+@model EduShelf.ViewModels.LookupEditViewModel
+@{ ViewData["Title"] = Model.Id == 0 ? $"{Model.Title} қосу" : $"{Model.Title}: өңдеу";
+   var maximumLength = Model.Kind switch { "subjects" => 100, "topics" => 120, "types" => 80, _ => 60 }; }
+<div class="page-heading"><div><span class="eyebrow">АНЫҚТАМАЛЫҚТЫ ӨҢДЕУ</span><h1>@ViewData["Title"]</h1><p>Қысқа әрі түсінікті атау қолданыңыз.</p></div></div>
+<section class="panel">
+    <form asp-action="EditLookup" method="post" class="stack">
+        <input asp-for="Id" type="hidden" /><input asp-for="Kind" type="hidden" />
+        <div asp-validation-summary="ModelOnly" class="validation-summary" role="alert"></div>
+        <div class="form-field">
+            <label asp-for="Name"></label><input asp-for="Name" maxlength="@maximumLength" autofocus />
+            <span asp-validation-for="Name"></span>
+        </div>
+        @if (Model.Kind == "topics")
+        {
+            <div class="form-field">
+                <label asp-for="SubjectId"></label>
+                <select asp-for="SubjectId" asp-items="Model.Subjects"><option value="">Пәнді таңдаңыз</option></select>
+                <span asp-validation-for="SubjectId"></span>
+                <span class="field-hint">Материалдар қолданатын тақырыптың пәнін өзгертуге болмайды.</span>
+            </div>
+        }
+        <div class="form-actions"><button type="submit" class="btn btn-primary">Сақтау</button><a asp-action="Lookups" asp-route-kind="@Model.Kind" class="btn btn-secondary">Бас тарту</a></div>
+    </form>
+</section>

@@ -1,0 +1,24 @@
+@model ResourceCardViewModel
+@{
+    var returnUrl = Context.Request.Path + Context.Request.QueryString;
+    var tone = Model.SubjectName.Aggregate(0, (sum, ch) => sum + ch) % 3;
+}
+<article class="resource-card">
+    <a class="resource-cover cover-tone-@tone" asp-controller="Resources" asp-action="Details" asp-route-id="@Model.Id" tabindex="-1" aria-hidden="true">
+        <div class="cover-grid"></div><span class="cover-subject">@Model.SubjectName</span><div class="cover-document"><svg class="icon"><use href="#i-book" /></svg><span>@Model.TypeName</span><i></i><i></i><i></i></div><span class="file-pill">PDF</span>
+    </a>
+    <div class="resource-body">
+        <div class="resource-meta"><span class="subject-label">@Model.SubjectName</span><span class="resource-type">@Model.TypeName</span></div>
+        <h3><a asp-controller="Resources" asp-action="Details" asp-route-id="@Model.Id">@Model.Title</a></h3>
+        <p class="resource-description">@Model.Description</p>
+        <div class="resource-owner"><span class="mini-avatar">@(string.IsNullOrWhiteSpace(Model.OwnerName) ? "E" : Model.OwnerName[..1])</span>@Model.OwnerName</div>
+        <div class="resource-footer"><span title="Қаралым"><svg class="icon"><use href="#i-eye" /></svg>@Model.ViewCount</span><span title="Жүктеу"><svg class="icon"><use href="#i-download" /></svg>@Model.DownloadCount</span>
+            @if (Model.Status != ResourceStatus.Published) { <span class="badge badge-muted">@(Model.Status == ResourceStatus.Draft ? "Жоба" : "Архив")</span> }
+            @if (User.Identity?.IsAuthenticated == true)
+            {
+                <form class="favorite-form" asp-controller="Library" asp-action="ToggleFavorite" method="post"><input type="hidden" name="id" value="@Model.Id" /><input type="hidden" name="returnUrl" value="@returnUrl" /><button class="icon-button favorite-button @(Model.IsFavorite ? "is-favorite" : "")" aria-label="@(Model.IsFavorite ? "Таңдаулыдан алып тастау" : "Таңдаулыға қосу")" aria-pressed="@Model.IsFavorite.ToString().ToLowerInvariant()"><svg class="icon"><use href="#i-bookmark" /></svg></button></form>
+            }
+            else { <a class="icon-button favorite-button" asp-controller="Account" asp-action="Login" asp-route-returnUrl="@returnUrl" aria-label="Таңдаулыға қосу үшін кіру"><svg class="icon"><use href="#i-bookmark" /></svg></a> }
+        </div>
+    </div>
+</article>

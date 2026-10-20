@@ -1,0 +1,7 @@
+@{
+    var code = ViewData["StatusCode"] is int value ? value : 404;
+    ViewData["Title"] = code == 403 ? "Қолжетімділік шектеулі" : code == 404 ? "Бет табылмады" : "Сұрау орындалмады";
+    var description = code == 403 ? "Бұл бетті көруге рұқсатыңыз жоқ. Қажетті аккаунтқа кіргеніңізді тексеріңіз." : code == 404 ? "Бұл мекенжайда бет немесе материал табылмады. Каталогтан іздеп көріңіз." : "Сұрауды орындау мүмкін болмады. Басты бетке оралып, қайта көріңіз.";
+    if (ViewData["Message"] is string message) description = message;
+}
+<section class="empty-state error-page"><div class="error-code">@code</div><h1>@ViewData["Title"]</h1><p>@description</p><a class="btn btn-primary" asp-controller="Resources" asp-action="Index">Каталогқа өту <svg class="icon"><use href="#i-arrow" /></svg></a><a class="btn btn-ghost" asp-controller="Home" asp-action="Index">Басты бет</a></section>

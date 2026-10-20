@@ -1,50 +1,83 @@
-﻿<!DOCTYPE html>
-<html lang="en">
+@inject Microsoft.AspNetCore.Identity.UserManager<ApplicationUser> UserManager
+@{
+    var controller = ViewContext.RouteData.Values["controller"]?.ToString();
+    var action = ViewContext.RouteData.Values["action"]?.ToString();
+    var isTeacher = User.IsInRole("Teacher") || User.IsInRole("Admin");
+    var currentUser = User.Identity?.IsAuthenticated == true ? await UserManager.GetUserAsync(User) : null;
+    var displayName = currentUser?.FullName ?? "Қонақ";
+    string Active(string c, string a = "Index") => controller == c && (action == a || c == "Resources") ? "active" : "";
+}
+<!DOCTYPE html>
+<html lang="kk">
 <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - EduShelf</title>
-    <script type="importmap"></script>
-    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#14263D" />
+    <link rel="icon" href="~/favicon.svg" type="image/svg+xml" />
+    <meta name="description" content="EduShelf — білім алуға және бөлісуге арналған электрондық оқу ресурстарының кітапханасы." />
+    <title>@ViewData["Title"] · EduShelf</title>
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
-    <link rel="stylesheet" href="~/EduShelf.styles.css" asp-append-version="true" />
 </head>
 <body>
-    <header>
-        <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
-            <div class="container-fluid">
-                <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">EduShelf</a>
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
-                        aria-expanded="false" aria-label="Toggle navigation">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
-                <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
-                    <ul class="navbar-nav flex-grow-1">
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Index">Home</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
-                        </li>
-                    </ul>
-                </div>
-            </div>
+    <a class="skip-link" href="#main-content">Негізгі мазмұнға өту</a>
+    <partial name="_Icons" />
+    <button class="nav-backdrop" data-nav-close tabindex="-1" aria-label="Мәзірді жабу"></button>
+    <aside class="sidebar" id="main-navigation" aria-label="Негізгі навигация">
+        <a class="brand" asp-controller="Home" asp-action="Index" aria-label="EduShelf басты беті">
+            <span class="brand-mark"><svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M6 7.5 16 11l10-3.5v16L16 27 6 23.5z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M16 11v16M9 4l10 3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span>
+            <span>Edu<span class="brand-accent">Shelf</span><small>БІЛІМ КІТАПХАНАСЫ</small></span>
+        </a>
+        <div class="sidebar-label">БІЛІМ КЕҢІСТІГІ</div>
+        <nav class="nav-links">
+            <a class="nav-link @Active("Home")" asp-controller="Home" asp-action="Index" aria-current="@(Active("Home") == "active" ? "page" : null)"><svg class="icon"><use href="#i-home" /></svg>Басты бет</a>
+            <a class="nav-link @Active("Resources")" asp-controller="Resources" asp-action="Index" aria-current="@(Active("Resources") == "active" ? "page" : null)"><svg class="icon"><use href="#i-grid" /></svg>Каталог<span class="nav-arrow">›</span></a>
+            <a class="nav-link @Active("Library", "Favorites")" asp-controller="Library" asp-action="Favorites"><svg class="icon"><use href="#i-bookmark" /></svg>Таңдаулы</a>
+            <a class="nav-link @Active("Library", "History")" asp-controller="Library" asp-action="History"><svg class="icon"><use href="#i-history" /></svg>Менің тарихым</a>
         </nav>
-    </header>
-    <div class="container">
-        <main role="main" class="pb-3">
+        @if (isTeacher)
+        {
+            <div class="sidebar-label">ЖЕКЕ КАБИНЕТ</div>
+            <nav class="nav-links">
+                <a class="nav-link @Active("Library", "Mine")" asp-controller="Library" asp-action="Mine"><svg class="icon"><use href="#i-folder" /></svg>Менің материалдарым</a>
+                <a class="nav-link @Active("Library", "Analytics")" asp-controller="Library" asp-action="Analytics"><svg class="icon"><use href="#i-chart" /></svg>Аналитика</a>
+                @if (User.IsInRole("Admin"))
+                {
+                    <a class="nav-link @(controller == "Admin" ? "active" : "")" asp-controller="Admin" asp-action="Index"><svg class="icon"><use href="#i-settings" /></svg>Басқару</a>
+                }
+            </nav>
+        }
+        <div class="sidebar-note"><span class="note-icon"><svg class="icon"><use href="#i-book" /></svg></span><strong>Біліммен бөлісіңіз</strong><p>Әр материал — жаңа мүмкіндікке бастар қадам.</p>@if (isTeacher) { <a asp-controller="Resources" asp-action="Create">Материал қосу <span>↗</span></a> } else { <a asp-controller="Resources" asp-action="Index">Кітапхананы ашу <span>↗</span></a> }</div>
+        <div class="sidebar-bottom"><span class="language-dot"></span> Қазақша <span class="version">EduShelf · 2026</span></div>
+    </aside>
+    <div class="app-shell">
+        <header class="topbar">
+            <div class="topbar-left"><button class="icon-button mobile-menu" data-nav-toggle aria-controls="main-navigation" aria-expanded="false" aria-label="Мәзірді ашу"><svg class="icon"><use href="#i-menu" /></svg></button><span class="topbar-context">Білімге жол <span>/</span> <strong>@ViewData["Title"]</strong></span></div>
+            <div class="topbar-actions">
+                @if (User.Identity?.IsAuthenticated == true)
+                {
+                    <div class="profile"><span class="avatar">@(displayName.Length > 0 ? displayName[..1].ToUpperInvariant() : "E")</span><span class="profile-copy"><strong>@displayName</strong><small>@(User.IsInRole("Admin") ? "Әкімші" : isTeacher ? "Оқытушы" : "Студент")</small></span></div>
+                    <form asp-controller="Account" asp-action="Logout" method="post"><button class="icon-button" title="Шығу" aria-label="Аккаунттан шығу"><svg class="icon"><use href="#i-logout" /></svg></button></form>
+                }
+                else
+                {
+                    <a class="topbar-login" asp-controller="Account" asp-action="Login">Кіру</a><a class="btn btn-primary btn-small" asp-controller="Account" asp-action="Register">Тіркелу <svg class="icon"><use href="#i-arrow" /></svg></a>
+                }
+            </div>
+        </header>
+        <main class="main-content" id="main-content">
+            @if (TempData["Success"] is string success)
+            {
+                <div class="notice notice-success" role="status"><svg class="icon"><use href="#i-check" /></svg><span>@success</span><button class="icon-button" data-dismiss-notice aria-label="Хабарламаны жабу">×</button></div>
+            }
+            @if (TempData["Error"] is string error)
+            {
+                <div class="notice notice-error" role="alert"><svg class="icon"><use href="#i-info" /></svg><span>@error</span></div>
+            }
             @RenderBody()
         </main>
+        <footer class="page-footer"><span>© 2026 EduShelf. Білімге бірге қадам басайық.</span><a asp-controller="Home" asp-action="Privacy">Құпиялық саясаты</a></footer>
     </div>
-
-    <footer class="border-top footer text-muted">
-        <div class="container">
-            &copy; 2026 - EduShelf - <a asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
-        </div>
-    </footer>
-    <script src="~/lib/jquery/dist/jquery.min.js"></script>
-    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="~/js/site.js" asp-append-version="true"></script>
+    <script src="~/js/site.js" asp-append-version="true" defer></script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

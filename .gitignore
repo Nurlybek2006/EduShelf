@@ -3,3 +3,13 @@ bin/
 obj/
 *.user
 *.suo
+App_Data/
+TestResults/
+**/TestResults/
+tmp/
+output/
+.env
+.env.*
+*.log
+appsettings.Local.json
+.tools/

@@ -1,0 +1,27 @@
+@model CatalogViewModel
+@{ ViewData["Title"] = "Материалдар каталогы"; }
+<div class="page-heading"><div><span class="eyebrow">СІЗДІҢ КЕЛЕСІ ЖАҢАЛЫҒЫҢЫЗ ОСЫНДА</span><h1>Материалдар каталогы</h1><p>Ізденуге шабыт беретін пайдалы оқу ресурстары.</p></div>@if (User.IsInRole("Teacher") || User.IsInRole("Admin")) { <a class="btn btn-primary" asp-action="Create"><svg class="icon"><use href="#i-plus" /></svg>Материал қосу</a> }</div>
+<form method="get" asp-action="Index" class="catalog-filters panel" role="search">
+    <div class="search-field"><svg class="icon"><use href="#i-search" /></svg><input type="search" name="Search" value="@Model.Query.Search" placeholder="Материал атауын, сипаттамасын немесе тегті іздеу..." aria-label="Материалдарды іздеу" /><button class="btn btn-primary" type="submit">Іздеу <svg class="icon"><use href="#i-arrow" /></svg></button></div>
+    <div class="filter-row">
+        <div class="form-field"><label for="subject-filter">Пән</label><select id="subject-filter" name="SubjectId" data-subject-select><option value="">Барлық пәндер</option>@foreach (var item in Model.Subjects) { <option value="@item.Id" selected="@(item.Id == Model.Query.SubjectId)">@item.Name</option> }</select></div>
+        <div class="form-field"><label for="topic-filter">Тақырып</label><select id="topic-filter" name="TopicId" data-topic-select><option value="">Барлық тақырыптар</option>@foreach (var item in Model.Topics) { <option value="@item.Id" data-subject="@item.SubjectId" selected="@(item.Id == Model.Query.TopicId)">@item.Name</option> }</select></div>
+        <div class="form-field"><label for="type-filter">Материал түрі</label><select id="type-filter" name="TypeId"><option value="">Барлық түрлер</option>@foreach (var item in Model.ResourceTypes) { <option value="@item.Id" selected="@(item.Id == Model.Query.TypeId)">@item.Name</option> }</select></div>
+        <div class="form-field"><label for="sort-filter">Сұрыптау</label><select id="sort-filter" name="Sort"><option value="new" selected="@(Model.Query.Sort == "new")">Алдымен жаңалары</option><option value="popular" selected="@(Model.Query.Sort == "popular")">Ең танымал</option><option value="title" selected="@(Model.Query.Sort == "title")">Атауы бойынша</option></select></div>
+        <button class="btn btn-secondary filter-apply" type="submit"><svg class="icon"><use href="#i-filter" /></svg>Қолдану</button>
+        <a class="filter-reset" asp-action="Index">Тазарту</a>
+    </div>
+</form>
+<div class="catalog-toolbar"><p><strong>@Model.TotalCount</strong> материал табылды @if (!string.IsNullOrWhiteSpace(Model.Query.Search)) { <span>«@Model.Query.Search» сұрауы бойынша</span> }</p><div class="view-toggle" role="group" aria-label="Көрсету режимі"><button type="button" class="active" data-view="grid" aria-label="Тор түрінде" aria-pressed="true"><svg class="icon"><use href="#i-grid" /></svg></button><button type="button" data-view="list" aria-label="Тізім түрінде" aria-pressed="false"><svg class="icon"><use href="#i-list" /></svg></button></div></div>
+@if (Model.Items.Any())
+{
+    <div class="resource-grid" data-resource-grid>@foreach (var item in Model.Items) { <partial name="_ResourceCard" model="item" /> }</div>
+    @if (Model.PageCount > 1)
+    {
+        <nav class="pagination" aria-label="Каталог беттері">@for (var page = Math.Max(1, Model.Query.Page - 2); page <= Math.Min(Model.PageCount, Model.Query.Page + 2); page++) { <a class="@(page == Model.Query.Page ? "current" : "")" asp-action="Index" asp-route-Page="@(page)" asp-route-Search="@Model.Query.Search" asp-route-SubjectId="@Model.Query.SubjectId" asp-route-TopicId="@Model.Query.TopicId" asp-route-TypeId="@Model.Query.TypeId" asp-route-Sort="@Model.Query.Sort" aria-label="@($"{page}-бет")" aria-current="@(page == Model.Query.Page ? "page" : null)">@(page)</a> }<span>@Model.PageCount беттен</span></nav>
+    }
+}
+else
+{
+    <div class="empty-state"><span class="empty-icon"><svg class="icon"><use href="#i-search" /></svg></span><h2>Әзірге материал табылмады</h2><p>Іздеу сөзін өзгертіп немесе сүзгілерді алып тастап көріңіз.</p><a class="btn btn-primary" asp-action="Index">Барлық материалдарды көру <svg class="icon"><use href="#i-arrow" /></svg></a></div>
+}
